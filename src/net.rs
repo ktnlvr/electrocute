@@ -1,5 +1,7 @@
 use nalgebra::{Complex, DMatrix, DVector};
 
+use crate::circuit::Circuit;
+
 pub type c64 = Complex<f64>;
 
 pub struct Net {
