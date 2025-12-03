@@ -13,6 +13,27 @@ pub fn tokenize(input: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
+fn parse_si_number(s: &str) -> Option<f64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    let (num_str, multiplier) = match s.chars().last().unwrap() {
+        'p' => (&s[..s.len() - 1], 1e-12),
+        'n' => (&s[..s.len() - 1], 1e-9),
+        'u' => (&s[..s.len() - 1], 1e-6),
+        'm' => (&s[..s.len() - 1], 1e-3),
+        'k' | 'K' => (&s[..s.len() - 1], 1e3),
+        'M' => (&s[..s.len() - 1], 1e6),
+        'G' => (&s[..s.len() - 1], 1e9),
+        c if c.is_ascii_digit() || c == '.' => (s, 1.0),
+        _ => (s, 1.0),
+    };
+
+    num_str.parse::<f64>().ok().map(|v| v * multiplier)
+}
+
 pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
     let mut circuit = Circuit::new();
     let mut terminal_map: HashMap<String, u32> = HashMap::new();
@@ -31,7 +52,7 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
             if let Some(eq_pos) = tok.find('=') {
                 let key = &tok[..eq_pos];
                 let value = &tok[eq_pos + 1..];
-                if let Ok(val) = value.parse::<f64>() {
+                if let Some(val) = parse_si_number(value) {
                     inner_params.insert(key.to_string(), val);
                 }
             } else {

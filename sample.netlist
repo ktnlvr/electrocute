@@ -1,5 +1,5 @@
 dc-source-1-terminal    in          V=5
-resistor                in common   R=5
-resistor                in common   R=10
-resistor                common out  R=15
+resistor                in common   R=5k
+resistor                in common   R=10k
+resistor                common out  R=15k
 ground                  out
