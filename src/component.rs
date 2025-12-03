@@ -17,7 +17,7 @@ pub trait Component: Pod {
     ) -> Vec<(&'static str, c64)>;
 }
 
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
 #[repr(C)]
 pub struct Resistor {
     pub resistance_ohm: f64,
@@ -49,7 +49,7 @@ impl Component for Resistor {
     }
 }
 
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
 #[repr(C)]
 pub struct DC1Source {
     pub voltage_volt: f64,
@@ -76,7 +76,7 @@ impl Component for DC1Source {
     }
 }
 
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
 #[repr(C)]
 pub struct Ground;
 

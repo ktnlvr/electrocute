@@ -100,7 +100,6 @@ impl Circuit {
                 components.component_size + components.state_size + components.terminals * 4;
 
             if total_size == 0 {
-                (components.solve_fn)(&[], net, dt, &[], &mut []);
                 continue;
             }
 

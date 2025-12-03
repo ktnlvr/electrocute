@@ -4,7 +4,7 @@ use crate::{
     circuit::Circuit,
     component::{DC1Source, Ground, Resistor},
     net::Net,
-    parser::tokenize,
+    parser::{generate_circuit, tokenize},
 };
 
 mod circuit;
@@ -14,31 +14,11 @@ mod parser;
 
 pub fn main() {
     let netlist = include_str!("../sample.netlist");
-    let components = tokenize(netlist);
+    let tokens = tokenize(netlist);
 
-    println!("{:?}", components);
+    let mut circuit = generate_circuit(tokens);
 
     const STEPS: usize = 10;
-
-    let r1 = Resistor { resistance_ohm: 5. };
-    let r2 = Resistor {
-        resistance_ohm: 10.,
-    };
-    let r3 = Resistor {
-        resistance_ohm: 15.,
-    };
-
-    let gnd = Ground;
-    let src = DC1Source { voltage_volt: 5. };
-
-    let mut circuit = Circuit::new();
-
-    circuit
-        .put(r1, [0, 1])
-        .put(r2, [0, 1])
-        .put(r3, [1, 2])
-        .put(gnd, [0])
-        .put(src, [2]);
 
     let mut net = Net::new(3);
     for _ in 0..STEPS {
