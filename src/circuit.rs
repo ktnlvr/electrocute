@@ -2,9 +2,13 @@ use std::{
     any::TypeId,
     collections::{HashMap, HashSet},
     f64::consts::PI,
+    mem::size_of,
 };
 
-use bytemuck::{bytes_of, try_from_bytes, try_from_bytes_mut};
+use bytemuck::{
+    bytes_of,
+    checked::{try_from_bytes, try_from_bytes_mut},
+};
 use prettytable::{Cell, Row, Table};
 
 use crate::{
@@ -15,9 +19,10 @@ use crate::{
 struct Components {
     buffer: Vec<u8>,
     solve_fn: Box<dyn Fn(&[u8], &mut Net, f64, &[u32], &mut [u8])>,
-    describe_fn: Box<dyn Fn(&[u8], &mut Net, &[u32], &mut [u8]) -> Vec<(&'static str, c64)>>,
-    comp_size: usize,
+    describe_fn: Box<dyn Fn(&[u8], &Net, &[u32], &[u8]) -> Vec<(&'static str, c64)>>,
+    component_size: usize,
     state_size: usize,
+    priority: usize,
     terminals: usize,
 }
 
@@ -32,142 +37,181 @@ impl Circuit {
         }
     }
 
-    pub fn put<T: 'static + Component>(
-        &mut self,
-        component: T,
-        terminals: [u32; T::N],
-    ) -> &mut Self {
-        let type_id = TypeId::of::<T>();
-        let slice = bytes_of(&component);
-
-        let components = self.circuit.entry(type_id).or_insert(Components {
+    pub fn put<T: Component>(&mut self, component: T, terminals: [u32; T::N]) -> &mut Self {
+        let components = self.circuit.entry(TypeId::of::<T>()).or_insert(Components {
             buffer: vec![],
             solve_fn: Box::new(
                 |this: &[u8], net: &mut Net, dt: f64, ts: &[u32], state: &mut [u8]| {
                     let this: &T = try_from_bytes(this).unwrap();
-                    let mut terminals = [0u32; T::N];
-                    terminals
-                        .iter_mut()
-                        .zip(ts.iter())
-                        .for_each(|(t, tt)| *t = *tt);
                     let state: &mut T::State = try_from_bytes_mut(state).unwrap();
+
+                    let mut terminals = [0u32; T::N];
+                    ts.iter().enumerate().for_each(|(i, t)| {
+                        terminals[i] = *t;
+                    });
 
                     this.solve(net, dt, terminals, state);
                 },
             ),
-            describe_fn: Box::new(|this: &[u8], net: &mut Net, ts: &[u32], state: &mut [u8]| {
-                let this: &T = try_from_bytes(this).unwrap();
-                let mut terminals = [0u32; T::N];
-                terminals
-                    .iter_mut()
-                    .zip(ts.iter())
-                    .for_each(|(t, tt)| *t = *tt);
-                let state: &mut T::State = try_from_bytes_mut(state).unwrap();
+            describe_fn: Box::new(
+                |this: &[u8], net: &Net, ts: &[u32], state: &[u8]| -> Vec<(&'static str, c64)> {
+                    let this: &T = try_from_bytes(this).unwrap();
+                    let state: &T::State = try_from_bytes(state).unwrap();
 
-                this.describe(net, terminals, state)
-            }),
-            comp_size: std::mem::size_of::<T>(),
-            state_size: if T::is_stateful() {
-                std::mem::size_of::<T::State>()
-            } else {
-                0
-            },
+                    let mut terminals = [0u32; T::N];
+                    ts.iter().enumerate().for_each(|(i, t)| {
+                        terminals[i] = *t;
+                    });
+
+                    this.describe(net, terminals, state)
+                },
+            ),
+            component_size: size_of::<T>(),
+            state_size: size_of::<T::State>(),
             terminals: T::N,
+            priority: T::PRIORITY,
         });
 
-        let buffer = &mut components.buffer;
-        buffer.extend_from_slice(slice);
-        if T::is_stateful() {
-            buffer.extend_from_slice(bytes_of(&T::State::default()));
-        }
+        components.buffer.extend(bytes_of(&component));
+        components
+            .buffer
+            .extend_from_slice(bytes_of(&T::State::default()));
 
-        for terminal in terminals {
-            buffer.extend_from_slice(bytes_of(&terminal));
-        }
+        (0..T::N).for_each(|i| {
+            components.buffer.extend(bytes_of(&terminals[i]));
+        });
 
         self
     }
 
     pub fn fill_in_net(&mut self, net: &mut Net, dt: f64) {
-        for comps in self.circuit.values_mut() {
-            let comp_size = comps.comp_size;
-            let state_size = comps.state_size;
+        let mut values = self.circuit.iter_mut().collect::<Vec<_>>();
+        values.sort_by_key(|(_, c)| c.priority);
+        let values = values
+            .into_iter()
+            .map(|(c, _)| c)
+            .copied()
+            .collect::<Vec<_>>();
 
-            let n_terminals = comps.terminals;
+        for i in values {
+            let components = self.circuit.get_mut(&i).unwrap();
 
-            let terminal_bytes = n_terminals * std::mem::size_of::<u32>();
-            let stride = comp_size + state_size + terminal_bytes;
+            let total_size =
+                components.component_size + components.state_size + components.terminals * 4;
 
-            let buf_len = comps.buffer.len();
+            if total_size == 0 {
+                (components.solve_fn)(&[], net, dt, &[], &mut []);
+                continue;
+            }
+
             let mut offset = 0;
+            while offset + total_size <= components.buffer.len() {
+                let (slice, _) = components.buffer[offset..].split_at_mut(total_size);
 
-            while offset + stride <= buf_len {
-                let bytes = &mut comps.buffer[offset..offset + stride];
+                let (comp_bytes, rest) = slice.split_at_mut(components.component_size);
+                let (state_bytes, term_bytes) = rest.split_at_mut(components.state_size);
 
-                let (comp_bytes, rest) = bytes.split_at_mut(comp_size);
-                let (state_bytes, terminal_bytes) = rest.split_at_mut(state_size);
+                let comp_bytes: &[u8] = comp_bytes;
+                let mut terminals = [0u32; 8];
+                for i in 0..components.terminals {
+                    let start = i * 4;
+                    let end = start + 4;
+                    terminals[i] = u32::from_ne_bytes(term_bytes[start..end].try_into().unwrap());
+                }
 
-                let (_, terminals, _) = unsafe { terminal_bytes.align_to::<u32>() };
+                (components.solve_fn)(
+                    comp_bytes,
+                    net,
+                    dt,
+                    &terminals[..components.terminals],
+                    state_bytes,
+                );
 
-                (comps.solve_fn)(comp_bytes, net, dt, terminals, state_bytes);
-
-                offset += stride;
+                offset += total_size;
             }
         }
     }
 
-    pub fn describe(&mut self, net: &mut Net) {
+    pub fn describe(&mut self, net: &Net) {
+        let mut values = self.circuit.iter_mut().collect::<Vec<_>>();
+        values.sort_by_key(|(_, c)| c.priority);
+        let values = values
+            .into_iter()
+            .map(|(c, _)| c)
+            .copied()
+            .collect::<Vec<_>>();
+
+        let mut table = Table::new();
+
         let mut headers = HashSet::<&'static str>::new();
         let mut rows = Vec::<HashMap<&'static str, c64>>::new();
 
-        for comps in self.circuit.values_mut() {
-            let comp_size = comps.comp_size;
-            let state_size = comps.state_size;
-            let n_terminals = comps.terminals;
-            let terminal_bytes = n_terminals * std::mem::size_of::<u32>();
-            let stride = comp_size + state_size + terminal_bytes;
+        for i in values {
+            let components = self.circuit.get_mut(&i).unwrap();
 
-            let buf_len = comps.buffer.len();
+            let total_size =
+                components.component_size + components.state_size + components.terminals * 4;
+
+            if total_size == 0 {
+                continue;
+            }
+
             let mut offset = 0;
+            while offset + total_size <= components.buffer.len() {
+                let (slice, _) = components.buffer[offset..].split_at_mut(total_size);
 
-            while offset + stride <= buf_len {
-                let bytes = &mut comps.buffer[offset..offset + stride];
+                let (comp_bytes, rest) = slice.split_at_mut(components.component_size);
+                let (state_bytes, term_bytes) = rest.split_at_mut(components.state_size);
 
-                let (comp_bytes, rest) = bytes.split_at_mut(comp_size);
-                let (state_bytes, terminal_bytes) = rest.split_at_mut(state_size);
+                let comp_bytes: &[u8] = comp_bytes;
+                let mut terminals = [0u32; 8];
+                for i in 0..components.terminals {
+                    let start = i * 4;
+                    let end = start + 4;
+                    terminals[i] = u32::from_ne_bytes(term_bytes[start..end].try_into().unwrap());
+                }
 
-                let (_, terminals, _) = unsafe { terminal_bytes.align_to::<u32>() };
+                let described = (components.describe_fn)(
+                    comp_bytes,
+                    net,
+                    &terminals[..components.terminals],
+                    state_bytes,
+                );
 
-                let values = (comps.describe_fn)(comp_bytes, net, terminals, state_bytes);
+                headers.extend(described.iter().map(|(k, _)| k));
+                rows.push(described.into_iter().collect::<HashMap<_, _>>());
 
-                headers.extend(values.iter().map(|(h, _)| h));
-                rows.push(values.into_iter().collect());
-
-                offset += stride;
+                offset += total_size;
             }
         }
 
-        let mut headers = headers.into_iter().collect::<Vec<_>>();
+        let mut headers = headers.iter().collect::<Vec<_>>();
         headers.sort();
 
-        let mut table = Table::new();
-        table.add_row(Row::new(headers.iter().map(|h| Cell::new(h)).collect()));
+        table.add_row(Row::new(
+            headers
+                .clone()
+                .into_iter()
+                .copied()
+                .map(Cell::new)
+                .collect::<Vec<_>>(),
+        ));
 
         for row in rows {
             if row.is_empty() {
                 continue;
             }
 
-            let mut table_row: Vec<String> = vec![];
+            let r = table.add_row(Row::empty());
 
-            for &h in &headers {
-                table_row.push(match row.get(h) {
-                    Some(value) => format!("{:.2}∠{:.2}°", value.norm(), value.arg() * 180.0 / PI),
+            for &&h in &headers {
+                let value = match row.get(h) {
+                    Some(z) => format!("{:.2}∠{:.2}", z.norm(), z.arg() * 180. / PI),
                     None => "".to_string(),
-                });
-            }
+                };
 
-            table.add_row(Row::new(table_row.iter().map(|s| Cell::new(s)).collect()));
+                r.add_cell(Cell::new(&value));
+            }
         }
 
         table.printstd();

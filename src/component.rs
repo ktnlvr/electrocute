@@ -1,5 +1,3 @@
-use std::any::TypeId;
-
 use bytemuck::{Pod, Zeroable};
 
 use crate::net::{Net, c64};
@@ -7,18 +5,15 @@ use crate::net::{Net, c64};
 pub trait Component: Pod {
     type State: Pod + Clone + Copy + Default;
     const N: usize;
+    const PRIORITY: usize;
 
     fn solve(&self, net: &mut Net, dt: f64, terminals: [u32; Self::N], state: &mut Self::State);
 
-    fn is_stateful() -> bool {
-        TypeId::of::<Self::State>() != TypeId::of::<()>()
-    }
-
     fn describe(
         &self,
-        net: &mut Net,
+        net: &Net,
         terminals: [u32; Self::N],
-        state: &mut Self::State,
+        state: &Self::State,
     ) -> Vec<(&'static str, c64)>;
 }
 
@@ -31,6 +26,7 @@ pub struct Resistor {
 impl Component for Resistor {
     type State = ();
     const N: usize = 2;
+    const PRIORITY: usize = 10;
 
     fn solve(&self, net: &mut Net, _: f64, [n1, n2]: [u32; 2], _: &mut Self::State) {
         let y = c64::new(1. / self.resistance_ohm, 0.);
@@ -43,14 +39,13 @@ impl Component for Resistor {
 
     fn describe(
         &self,
-        net: &mut Net,
+        net: &Net,
         [start, end]: [u32; 2],
-        _: &mut Self::State,
+        _: &Self::State,
     ) -> Vec<(&'static str, c64)> {
-        vec![
-            ("R", c64::new(self.resistance_ohm, 0.)),
-            ("V", net.get_voltage_across(start, end)),
-        ]
+        let r = c64::new(self.resistance_ohm, 0.);
+        let v = net.get_voltage_across(start, end);
+        vec![("R", r), ("V", v), ("I", v / r)]
     }
 }
 
@@ -63,6 +58,7 @@ pub struct DC1Source {
 impl Component for DC1Source {
     type State = ();
     const N: usize = 1;
+    const PRIORITY: usize = 25;
 
     fn solve(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &mut Self::State) {
         net.clear_row_jacobian(n);
@@ -72,9 +68,9 @@ impl Component for DC1Source {
 
     fn describe(
         &self,
-        net: &mut Net,
+        net: &Net,
         terminals: [u32; Self::N],
-        state: &mut Self::State,
+        state: &Self::State,
     ) -> Vec<(&'static str, c64)> {
         vec![("V", c64::new(self.voltage_volt, 0.))]
     }
@@ -87,6 +83,7 @@ pub struct Ground;
 impl Component for Ground {
     type State = ();
     const N: usize = 1;
+    const PRIORITY: usize = 25;
 
     fn solve(&self, net: &mut Net, _: f64, [n]: [u32; Self::N], _: &mut Self::State) {
         net.clear_row_jacobian(n);
@@ -96,9 +93,9 @@ impl Component for Ground {
 
     fn describe(
         &self,
-        net: &mut Net,
+        net: &Net,
         terminals: [u32; Self::N],
-        state: &mut Self::State,
+        state: &Self::State,
     ) -> Vec<(&'static str, c64)> {
         vec![]
     }
