@@ -37,13 +37,15 @@ pub fn main() {
         .put(gnd, [0])
         .put(src, [1]);
 
-    for step in 0..STEPS {
-        let mut net = Net::new(2);
+    let mut net = Net::new(2);
+    for _ in 0..STEPS {
         let dt = 0.01;
 
         circuit.fill_in_net(&mut net, dt);
         net.solve();
-
-        println!("{step}: {:?}", net.voltages);
     }
+
+    println!("{:?}", net.voltages);
+
+    circuit.describe(&mut net);
 }

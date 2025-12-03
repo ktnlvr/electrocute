@@ -36,4 +36,12 @@ impl Net {
     pub fn set_current(&mut self, n: u32, value: c64) {
         self.currents[n as usize] = value;
     }
+
+    pub fn get_voltage_across(&mut self, from: u32, to: u32) -> c64 {
+        println!(
+            "{} {}",
+            self.voltages[from as usize], self.voltages[to as usize]
+        );
+        self.voltages[to as usize] - self.voltages[from as usize]
+    }
 }

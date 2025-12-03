@@ -14,7 +14,12 @@ pub trait Component: Pod {
         TypeId::of::<Self::State>() != TypeId::of::<()>()
     }
 
-    fn describe(&self) -> Vec<(&'static str, c64)>;
+    fn describe(
+        &self,
+        net: &mut Net,
+        terminals: [u32; Self::N],
+        state: &mut Self::State,
+    ) -> Vec<(&'static str, c64)>;
 }
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
@@ -36,8 +41,16 @@ impl Component for Resistor {
         net.add_jacobian(n2, n2, y);
     }
 
-    fn describe(&self) -> Vec<(&'static str, c64)> {
-        vec![("R", c64::new(self.resistance_ohm, 0.))]
+    fn describe(
+        &self,
+        net: &mut Net,
+        [start, end]: [u32; 2],
+        _: &mut Self::State,
+    ) -> Vec<(&'static str, c64)> {
+        vec![
+            ("R", c64::new(self.resistance_ohm, 0.)),
+            ("V", net.get_voltage_across(start, end)),
+        ]
     }
 }
 
@@ -57,7 +70,12 @@ impl Component for DC1Source {
         net.set_current(n, c64::new(self.voltage_volt, 0.));
     }
 
-    fn describe(&self) -> Vec<(&'static str, c64)> {
+    fn describe(
+        &self,
+        net: &mut Net,
+        terminals: [u32; Self::N],
+        state: &mut Self::State,
+    ) -> Vec<(&'static str, c64)> {
         vec![("V", c64::new(self.voltage_volt, 0.))]
     }
 }
@@ -70,9 +88,18 @@ impl Component for Ground {
     type State = ();
     const N: usize = 1;
 
-    fn solve(&self, _: &mut Net, _: f64, _: [u32; Self::N], _: &mut Self::State) {}
+    fn solve(&self, net: &mut Net, _: f64, [n]: [u32; Self::N], _: &mut Self::State) {
+        net.clear_row_jacobian(n);
+        net.add_jacobian(n, n, c64::ONE);
+        net.set_current(n, c64::ZERO);
+    }
 
-    fn describe(&self) -> Vec<(&'static str, c64)> {
+    fn describe(
+        &self,
+        net: &mut Net,
+        terminals: [u32; Self::N],
+        state: &mut Self::State,
+    ) -> Vec<(&'static str, c64)> {
         vec![]
     }
 }
