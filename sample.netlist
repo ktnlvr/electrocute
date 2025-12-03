@@ -1,0 +1,4 @@
+dc-source-1-terminal    in V 5
+resistor                in out R 10k
+resistor                in out R 5k
+gnd                     out

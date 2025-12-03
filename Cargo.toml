@@ -1,0 +1,8 @@
+[package]
+name = "electrocute"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+bytemuck = { version = "1.24.0", features = ["derive"] }
+nalgebra = { version = "0.34.1", features = ["bytemuck"] }
