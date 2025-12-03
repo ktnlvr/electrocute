@@ -4,6 +4,19 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::net::{Net, c64};
 
+pub trait Component: Pod {
+    type State: Pod + Clone + Copy + Default;
+    const N: usize;
+
+    fn solve(&self, net: &mut Net, dt: f64, terminals: [u32; Self::N], state: &mut Self::State);
+
+    fn is_stateful() -> bool {
+        TypeId::of::<Self::State>() != TypeId::of::<()>()
+    }
+
+    fn describe(&self) -> Vec<(&'static str, c64)>;
+}
+
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
 pub struct Resistor {
@@ -22,6 +35,10 @@ impl Component for Resistor {
         net.add_jacobian(n2, n1, -y);
         net.add_jacobian(n2, n2, y);
     }
+
+    fn describe(&self) -> Vec<(&'static str, c64)> {
+        vec![("R", c64::new(self.resistance_ohm, 0.))]
+    }
 }
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
@@ -39,6 +56,10 @@ impl Component for DC1Source {
         net.add_jacobian(n, n, c64::ONE);
         net.set_current(n, c64::new(self.voltage_volt, 0.));
     }
+
+    fn describe(&self) -> Vec<(&'static str, c64)> {
+        vec![("V", c64::new(self.voltage_volt, 0.))]
+    }
 }
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
@@ -50,19 +71,8 @@ impl Component for Ground {
     const N: usize = 1;
 
     fn solve(&self, _: &mut Net, _: f64, _: [u32; Self::N], _: &mut Self::State) {}
-}
 
-pub trait Component: Pod {
-    type State: Pod + Clone + Copy + Default;
-    const N: usize;
-
-    fn solve(&self, net: &mut Net, dt: f64, terminals: [u32; Self::N], state: &mut Self::State);
-
-    fn terminals() -> usize {
-        Self::N
-    }
-
-    fn is_stateful() -> bool {
-        TypeId::of::<Self::State>() != TypeId::of::<()>()
+    fn describe(&self) -> Vec<(&'static str, c64)> {
+        vec![]
     }
 }

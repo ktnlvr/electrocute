@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 bytemuck = { version = "1.24.0", features = ["derive"] }
 nalgebra = { version = "0.34.1", features = ["bytemuck"] }
+prettytable-rs = "0.10"
