@@ -26,6 +26,7 @@ pub fn main() {
 
     let mut graphing =
         HashMap::<((Option<String>, String), (Option<String>, String)), Vec<(c64, c64)>>::new();
+
     for cmd in &cmds {
         let Command::Graph { x, y } = cmd else {
             continue;

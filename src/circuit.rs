@@ -84,7 +84,16 @@ impl Circuit {
                         terminals[i] = *t;
                     });
 
-                    this.describe(net, terminals, state)
+                    let mut description = Vec::<(&'static str, c64)>::new();
+                    for &parameter in T::PARAMETERS {
+                        let Some(value) = this.parameter(net, terminals, state, parameter) else {
+                            continue;
+                        };
+
+                        description.push((parameter, value));
+                    }
+
+                    description
                 },
             ),
             component_size: size_of::<T>(),
@@ -144,6 +153,8 @@ impl Circuit {
                 );
 
                 let comp_name = components.names[offset / total_size].as_deref();
+                println!("{:?}", comp_name);
+
                 if comp_name == Some(name) {
                     for (k, v) in described {
                         if k == value {
