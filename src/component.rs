@@ -4,15 +4,21 @@ use crate::net::{Net, c64};
 
 pub trait Component: Pod {
     type State: Pod + Clone + Copy + Default;
-    const N: usize;
+    const TERMINAL_COUNT: usize;
     const PRIORITY: usize;
 
-    fn solve(&self, net: &mut Net, dt: f64, terminals: [u32; Self::N], state: &mut Self::State);
+    fn stamp(
+        &self,
+        net: &mut Net,
+        dt: f64,
+        terminals: [u32; Self::TERMINAL_COUNT],
+        state: &mut Self::State,
+    );
 
     fn describe(
         &self,
         net: &Net,
-        terminals: [u32; Self::N],
+        terminals: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
     ) -> Vec<(&'static str, c64)>;
 }
@@ -25,16 +31,16 @@ pub struct Resistor {
 
 impl Component for Resistor {
     type State = ();
-    const N: usize = 2;
+    const TERMINAL_COUNT: usize = 2;
     const PRIORITY: usize = 10;
 
-    fn solve(&self, net: &mut Net, _: f64, [n1, n2]: [u32; 2], _: &mut Self::State) {
+    fn stamp(&self, net: &mut Net, _: f64, [n1, n2]: [u32; 2], _: &mut Self::State) {
         let y = c64::new(1. / self.resistance_ohm, 0.);
 
-        net.add_jacobian(n1, n1, y);
-        net.add_jacobian(n1, n2, -y);
-        net.add_jacobian(n2, n1, -y);
-        net.add_jacobian(n2, n2, y);
+        net.add_a(n1, n1, y);
+        net.add_a(n1, n2, -y);
+        net.add_a(n2, n1, -y);
+        net.add_a(n2, n2, y);
     }
 
     fn describe(
@@ -57,19 +63,19 @@ pub struct DC1Source {
 
 impl Component for DC1Source {
     type State = ();
-    const N: usize = 1;
+    const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
 
-    fn solve(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &mut Self::State) {
+    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &mut Self::State) {
         net.clear_row_jacobian(n);
-        net.add_jacobian(n, n, c64::ONE);
-        net.set_current(n, c64::new(self.voltage_volt, 0.));
+        net.add_a(n, n, c64::ONE);
+        net.set_b(n, c64::new(self.voltage_volt, 0.));
     }
 
     fn describe(
         &self,
         net: &Net,
-        terminals: [u32; Self::N],
+        terminals: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
     ) -> Vec<(&'static str, c64)> {
         vec![("V", c64::new(self.voltage_volt, 0.))]
@@ -82,19 +88,19 @@ pub struct Ground;
 
 impl Component for Ground {
     type State = ();
-    const N: usize = 1;
+    const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
 
-    fn solve(&self, net: &mut Net, _: f64, [n]: [u32; Self::N], _: &mut Self::State) {
+    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; Self::TERMINAL_COUNT], _: &mut Self::State) {
         net.clear_row_jacobian(n);
-        net.add_jacobian(n, n, c64::ONE);
-        net.set_current(n, c64::ZERO);
+        net.add_a(n, n, c64::ONE);
+        net.set_b(n, c64::ZERO);
     }
 
     fn describe(
         &self,
         net: &Net,
-        terminals: [u32; Self::N],
+        terminals: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
     ) -> Vec<(&'static str, c64)> {
         vec![]

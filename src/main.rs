@@ -24,7 +24,7 @@ pub fn main() {
         let dt = 0.01;
 
         net.reset();
-        circuit.fill_in_net(&mut net, dt);
+        circuit.stamp(&mut net, dt);
 
         net.solve();
     }

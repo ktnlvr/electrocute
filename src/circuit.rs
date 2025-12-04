@@ -19,7 +19,7 @@ use crate::{
 
 struct Components {
     buffer: Vec<u8>,
-    solve_fn: Box<dyn Fn(&[u8], &mut Net, f64, &[u32], &mut [u8])>,
+    stamp_fn: Box<dyn Fn(&[u8], &mut Net, f64, &[u32], &mut [u8])>,
     describe_fn: Box<dyn Fn(&[u8], &Net, &[u32], &[u8]) -> Vec<(&'static str, c64)>>,
     component_size: usize,
     state_size: usize,
@@ -38,20 +38,24 @@ impl Circuit {
         }
     }
 
-    pub fn put<T: Component>(&mut self, component: T, terminals: [u32; T::N]) -> &mut Self {
+    pub fn put<T: Component>(
+        &mut self,
+        component: T,
+        terminals: [u32; T::TERMINAL_COUNT],
+    ) -> &mut Self {
         let components = self.circuit.entry(TypeId::of::<T>()).or_insert(Components {
             buffer: vec![],
-            solve_fn: Box::new(
+            stamp_fn: Box::new(
                 |this: &[u8], net: &mut Net, dt: f64, ts: &[u32], state: &mut [u8]| {
                     let this: &T = try_from_bytes(this).unwrap();
                     let state: &mut T::State = try_from_bytes_mut(state).unwrap();
 
-                    let mut terminals = [0u32; T::N];
+                    let mut terminals = [0u32; T::TERMINAL_COUNT];
                     ts.iter().enumerate().for_each(|(i, t)| {
                         terminals[i] = *t;
                     });
 
-                    this.solve(net, dt, terminals, state);
+                    this.stamp(net, dt, terminals, state);
                 },
             ),
             describe_fn: Box::new(
@@ -59,7 +63,7 @@ impl Circuit {
                     let this: &T = try_from_bytes(this).unwrap();
                     let state: &T::State = try_from_bytes(state).unwrap();
 
-                    let mut terminals = [0u32; T::N];
+                    let mut terminals = [0u32; T::TERMINAL_COUNT];
                     ts.iter().enumerate().for_each(|(i, t)| {
                         terminals[i] = *t;
                     });
@@ -69,7 +73,7 @@ impl Circuit {
             ),
             component_size: size_of::<T>(),
             state_size: size_of::<T::State>(),
-            terminals: T::N,
+            terminals: T::TERMINAL_COUNT,
             priority: T::PRIORITY,
         });
 
@@ -78,14 +82,14 @@ impl Circuit {
             .buffer
             .extend_from_slice(bytes_of(&T::State::default()));
 
-        (0..T::N).for_each(|i| {
+        (0..T::TERMINAL_COUNT).for_each(|i| {
             components.buffer.extend(bytes_of(&terminals[i]));
         });
 
         self
     }
 
-    pub fn fill_in_net(&mut self, net: &mut Net, dt: f64) {
+    pub fn stamp(&mut self, net: &mut Net, dt: f64) {
         let mut values = self.circuit.iter_mut().collect::<Vec<_>>();
         values.sort_by_key(|(_, c)| c.priority);
         let values = values
@@ -119,7 +123,7 @@ impl Circuit {
                     terminals[i] = u32::from_ne_bytes(term_bytes[start..end].try_into().unwrap());
                 }
 
-                (components.solve_fn)(
+                (components.stamp_fn)(
                     comp_bytes,
                     net,
                     dt,
