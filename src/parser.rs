@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     circuit::Circuit,
     component::{DC1Source, Ground, Resistor},
+    si::parse_si_number,
 };
 
 pub fn tokenize(input: &str) -> Vec<Vec<String>> {
@@ -11,27 +12,6 @@ pub fn tokenize(input: &str) -> Vec<Vec<String>> {
         .filter_map(|s| Some(s.trim()).filter(|s| !s.is_empty()))
         .map(|s| s.split_ascii_whitespace().map(|s| s.to_owned()).collect())
         .collect()
-}
-
-fn parse_si_number(s: &str) -> Option<f64> {
-    let s = s.trim();
-    if s.is_empty() {
-        return None;
-    }
-
-    let (num_str, multiplier) = match s.chars().last().unwrap() {
-        'p' => (&s[..s.len() - 1], 1e-12),
-        'n' => (&s[..s.len() - 1], 1e-9),
-        'u' => (&s[..s.len() - 1], 1e-6),
-        'm' => (&s[..s.len() - 1], 1e-3),
-        'k' | 'K' => (&s[..s.len() - 1], 1e3),
-        'M' => (&s[..s.len() - 1], 1e6),
-        'G' => (&s[..s.len() - 1], 1e9),
-        c if c.is_ascii_digit() || c == '.' => (s, 1.0),
-        _ => (s, 1.0),
-    };
-
-    num_str.parse::<f64>().ok().map(|v| v * multiplier)
 }
 
 pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
@@ -64,6 +44,8 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
                 terminals.push(idx);
             }
         }
+
+        terminals.reverse();
 
         match component_type.as_str() {
             "dc-source-1-terminal" => {

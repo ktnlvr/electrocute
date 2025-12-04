@@ -14,6 +14,7 @@ use prettytable::{Cell, Row, Table};
 use crate::{
     component::Component,
     net::{Net, c64},
+    si::format_complex_si,
 };
 
 struct Components {
@@ -205,7 +206,7 @@ impl Circuit {
 
             for &&h in &headers {
                 let value = match row.get(h) {
-                    Some(z) => format!("{:.2}∠{:.2}", z.norm(), z.arg() * 180. / PI),
+                    Some(z) => format_complex_si(*z),
                     None => "".to_string(),
                 };
 
