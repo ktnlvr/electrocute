@@ -3,3 +3,6 @@ resistor    "R1"        in outc     R=5k
 capacitor   "C1"        outc out    C=10u
 resistor    "R2"        in out      R=10k
 ground                  out
+
+-- Graph resistance over voltage
+.graph R1_I R1_V

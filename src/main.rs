@@ -2,7 +2,7 @@
 
 use crate::{
     net::Net,
-    parser::{generate_circuit, tokenize},
+    parser::{CircuitBuilder, generate_commands, tokenize},
     printing::print_table,
 };
 
@@ -16,8 +16,16 @@ mod si;
 pub fn main() {
     let netlist = include_str!("../sample.netlist");
     let tokens = tokenize(netlist);
+    let cmds = generate_commands(tokens);
 
-    let mut circuit = generate_circuit(tokens);
+    for cmd in &cmds {
+        println!("{:?}", cmd);
+    }
+
+    let mut builder = CircuitBuilder::new();
+    builder.add_commands(cmds);
+
+    let mut circuit = builder.build();
 
     const STEPS: usize = 10000;
 
