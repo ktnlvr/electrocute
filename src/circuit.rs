@@ -14,7 +14,7 @@ use prettytable::{Cell, Row, Table};
 use crate::{
     component::Component,
     net::{Net, c64},
-    si::format_complex_si,
+    si::{format_complex_si_unitful, var_to_si_unit},
 };
 
 struct Components {
@@ -210,7 +210,7 @@ impl Circuit {
 
             for &&h in &headers {
                 let value = match row.get(h) {
-                    Some(z) => format_complex_si(*z),
+                    Some(z) => format_complex_si_unitful(*z, var_to_si_unit(h).unwrap_or("")),
                     None => "".to_string(),
                 };
 

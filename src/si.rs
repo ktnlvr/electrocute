@@ -1,4 +1,6 @@
-use std::f64::consts::PI;
+use std::{collections::HashMap, f64::consts::PI};
+
+use lazy_static::lazy_static;
 
 use crate::net::c64;
 
@@ -13,7 +15,17 @@ pub const SI_PREFIXES: &[(f64, &str)] = &[
     (1e-9, "n"),
     (1e-12, "p"),
 ];
-pub fn format_complex_si(z: c64) -> String {
+
+lazy_static! {
+    static ref VAR_TO_SI_UNIT: HashMap<&'static str, &'static str> =
+        [("I", "A"), ("R", "Ω"), ("V", "V")].into_iter().collect();
+}
+
+pub fn var_to_si_unit(var: &str) -> Option<&'static str> {
+    VAR_TO_SI_UNIT.get(var).map(|v| &**v)
+}
+
+pub fn format_complex_si_unitful(z: c64, unit: &str) -> String {
     let mut mag = z.norm();
     let angle_deg = z.arg() * 180.0 / PI;
 
@@ -38,7 +50,11 @@ pub fn format_complex_si(z: c64) -> String {
     let formatted_mag = format!("{:.*}", decimal_places as usize, mag);
     let formatted_angle = format!("{:.2}", angle_deg);
 
-    format!("{}{}∠{}°", formatted_mag, prefix, formatted_angle)
+    format!("{}{}{} ∠{}°", formatted_mag, prefix, unit, formatted_angle)
+}
+
+pub fn format_complex_si(z: c64) -> String {
+    format_complex_si_unitful(z, "")
 }
 
 pub fn parse_si_number(s: &str) -> Option<f64> {

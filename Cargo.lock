@@ -96,6 +96,7 @@ name = "electrocute"
 version = "0.0.0"
 dependencies = [
  "bytemuck",
+ "lazy_static",
  "nalgebra",
  "prettytable-rs",
 ]
