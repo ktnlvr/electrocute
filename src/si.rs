@@ -5,6 +5,12 @@ use lazy_static::lazy_static;
 use crate::net::c64;
 
 pub const SI_PREFIXES: &[(f64, &str)] = &[
+    (1e30, "Q"),
+    (1e27, "R"),
+    (1e24, "Y"),
+    (1e21, "Z"),
+    (1e18, "E"),
+    (1e15, "P"),
     (1e12, "T"),
     (1e9, "G"),
     (1e6, "M"),
@@ -15,6 +21,9 @@ pub const SI_PREFIXES: &[(f64, &str)] = &[
     (1e-6, "u"), // duplicate, but that's ok
     (1e-9, "n"),
     (1e-12, "p"),
+    (1e-15, "f"),
+    (1e-18, "a"),
+    (1e-21, "z"),
 ];
 
 lazy_static! {
