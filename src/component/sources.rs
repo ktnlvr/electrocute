@@ -15,7 +15,7 @@ impl Component for DC1Source {
     type State = ();
     const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
-    const PARAMETERS: &[&'static str] = &["V"];
+    const PARAMETERS: &[&'static str] = &["V", "P"];
 
     fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &Self::State) {
         net.clear_row_jacobian(n);

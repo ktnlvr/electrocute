@@ -28,7 +28,7 @@ pub const SI_PREFIXES: &[(f64, &str)] = &[
 
 lazy_static! {
     static ref VAR_TO_SI_UNIT: HashMap<&'static str, &'static str> =
-        [("I", "A"), ("R", "Ω"), ("V", "V"), ("C", "F")]
+        [("I", "A"), ("R", "Ω"), ("V", "V"), ("C", "F"), ("P", "W")]
             .into_iter()
             .collect();
 }
