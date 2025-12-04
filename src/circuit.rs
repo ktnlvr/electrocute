@@ -101,8 +101,9 @@ impl Circuit {
         for i in values {
             let components = self.circuit.get_mut(&i).unwrap();
 
-            let total_size =
-                components.component_size + components.state_size + components.terminals * 4;
+            let total_size = components.component_size
+                + components.state_size
+                + components.terminals * std::mem::size_of::<u32>();
 
             if total_size == 0 {
                 continue;
