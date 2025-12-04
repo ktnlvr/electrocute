@@ -105,7 +105,7 @@ pub fn print_chart(chart_name: impl ToString, points: Vec<(f64, f64)>) -> String
         .collect();
 
     let mut chart =
-        Chart::new_with_y_range(180, 60, x_mi as f32, x_ma as f32, y_mi as f32, y_ma as f32);
+        Chart::new_with_y_range(120, 40, x_mi as f32, x_ma as f32, y_mi as f32, y_ma as f32);
 
     let mut c = &mut chart;
     for shape in &shapes {
