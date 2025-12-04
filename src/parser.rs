@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     circuit::Circuit,
-    component::{DC1Source, Ground, Resistor},
+    component::{Capacitor, DC1Source, Ground, Resistor},
     si::parse_si_number,
 };
 
@@ -45,8 +45,6 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
             }
         }
 
-        terminals.reverse();
-
         match component_type.as_str() {
             "dc-source-1-terminal" => {
                 let mut comp = DC1Source::default();
@@ -64,6 +62,14 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
             }
             "ground" => {
                 let comp = Ground::default();
+                circuit.put(comp, terminals.try_into().unwrap());
+            }
+            "capacitor" => {
+                let mut comp = Capacitor::default();
+                println!("{:?}", inner_params);
+                if let Some(&c) = inner_params.get("C") {
+                    comp.capacitance_f = c;
+                }
                 circuit.put(comp, terminals.try_into().unwrap());
             }
             _ => panic!("Unknown component type: {}", component_type),

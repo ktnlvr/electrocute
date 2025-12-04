@@ -12,15 +12,26 @@ pub trait Component: Pod {
         net: &mut Net,
         dt: f64,
         terminals: [u32; Self::TERMINAL_COUNT],
-        state: &mut Self::State,
+        state: &Self::State,
     );
+
+    fn post_stamp(
+        &self,
+        net: &Net,
+        dt: f64,
+        terminals: [u32; Self::TERMINAL_COUNT],
+        state: &mut Self::State,
+    ) {
+    }
 
     fn describe(
         &self,
         net: &Net,
         terminals: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
-    ) -> Vec<(&'static str, c64)>;
+    ) -> Vec<(&'static str, c64)> {
+        vec![]
+    }
 }
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
@@ -34,7 +45,7 @@ impl Component for Resistor {
     const TERMINAL_COUNT: usize = 2;
     const PRIORITY: usize = 10;
 
-    fn stamp(&self, net: &mut Net, _: f64, [n1, n2]: [u32; 2], _: &mut Self::State) {
+    fn stamp(&self, net: &mut Net, _: f64, [n1, n2]: [u32; 2], _: &Self::State) {
         let y = c64::new(1. / self.resistance_ohm, 0.);
 
         net.add_a(n1, n1, y);
@@ -66,7 +77,7 @@ impl Component for DC1Source {
     const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
 
-    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &mut Self::State) {
+    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &Self::State) {
         net.clear_row_jacobian(n);
         net.add_a(n, n, c64::ONE);
         net.set_b(n, c64::new(self.voltage_volt, 0.));
@@ -91,7 +102,7 @@ impl Component for Ground {
     const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
 
-    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; Self::TERMINAL_COUNT], _: &mut Self::State) {
+    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; Self::TERMINAL_COUNT], _: &Self::State) {
         net.clear_row_jacobian(n);
         net.add_a(n, n, c64::ONE);
         net.set_b(n, c64::ZERO);
@@ -104,5 +115,70 @@ impl Component for Ground {
         state: &Self::State,
     ) -> Vec<(&'static str, c64)> {
         vec![]
+    }
+}
+
+#[derive(Pod, Zeroable, Clone, Copy, Default)]
+#[repr(C)]
+pub struct Capacitor {
+    pub capacitance_f: f64,
+}
+
+#[derive(Pod, Zeroable, Clone, Copy, Default)]
+#[repr(C)]
+pub struct CapacitorState {
+    previous_voltage_re: f64,
+    previous_voltage_im: f64,
+}
+
+impl Component for Capacitor {
+    type State = CapacitorState;
+
+    const TERMINAL_COUNT: usize = 2;
+
+    const PRIORITY: usize = 10;
+
+    fn stamp(
+        &self,
+        net: &mut Net,
+        dt: f64,
+        [n1, n2]: [u32; Self::TERMINAL_COUNT],
+        state: &Self::State,
+    ) {
+        let g_eq = c64::new(self.capacitance_f / dt, 0.);
+        let v_prev = c64::new(state.previous_voltage_re, state.previous_voltage_im);
+        let i_hist = g_eq * v_prev;
+
+        net.add_a(n1, n1, g_eq);
+        net.add_a(n1, n2, -g_eq);
+        net.add_a(n2, n1, -g_eq);
+        net.add_a(n2, n2, g_eq);
+
+        net.add_b(n1, i_hist);
+        net.add_b(n2, -i_hist);
+    }
+
+    fn post_stamp(
+        &self,
+        net: &Net,
+        _: f64,
+        [n1, n2]: [u32; Self::TERMINAL_COUNT],
+        state: &mut Self::State,
+    ) {
+        let v = net.get_voltage_across(n1, n2);
+        state.previous_voltage_re = v.re;
+        state.previous_voltage_im = v.im;
+    }
+
+    fn describe(
+        &self,
+        net: &Net,
+        [n1, n2]: [u32; Self::TERMINAL_COUNT],
+        state: &Self::State,
+    ) -> Vec<(&'static str, c64)> {
+        let v = net.get_voltage_across(n1, n2);
+        let g_eq = c64::new(self.capacitance_f, 0.) / c64::new(1., 0.); // For info only
+        let i = g_eq * c64::new(state.previous_voltage_re, state.previous_voltage_im);
+        vec![("C", c64::new(self.capacitance_f, 0.)), ("V", v), ("I", i)]
     }
 }

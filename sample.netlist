@@ -1,4 +1,5 @@
 dc-source-1-terminal    in          V=5
-resistor                in out      R=5k
+resistor                in outc      R=5k
+capacitor               outc out      C=10u
 resistor                in out      R=10k
 ground                  out

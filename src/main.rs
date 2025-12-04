@@ -19,7 +19,7 @@ pub fn main() {
 
     const STEPS: usize = 10;
 
-    let mut net = Net::new(2);
+    let mut net = Net::new(3);
     for _ in 0..STEPS {
         let dt = 0.01;
 
@@ -27,7 +27,7 @@ pub fn main() {
         circuit.stamp(&mut net, dt);
 
         net.solve();
+        circuit.describe(&net);
+        println!("");
     }
-
-    circuit.describe(&net);
 }

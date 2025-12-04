@@ -45,8 +45,12 @@ impl Net {
         self.b[i as usize] = value;
     }
 
+    pub fn add_b(&mut self, i: u32, value: c64) {
+        self.b[i as usize] += value;
+    }
+
     pub fn get_voltage_across(&self, from: u32, to: u32) -> c64 {
-        self.x[to as usize] - self.x[from as usize]
+        self.x[from as usize] - self.x[to as usize]
     }
 
     pub fn get_current(&self, i: u32) -> c64 {

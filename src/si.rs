@@ -12,13 +12,16 @@ pub const SI_PREFIXES: &[(f64, &str)] = &[
     (1.0, ""),
     (1e-3, "m"),
     (1e-6, "µ"),
+    (1e-6, "u"),
     (1e-9, "n"),
     (1e-12, "p"),
 ];
 
 lazy_static! {
     static ref VAR_TO_SI_UNIT: HashMap<&'static str, &'static str> =
-        [("I", "A"), ("R", "Ω"), ("V", "V")].into_iter().collect();
+        [("I", "A"), ("R", "Ω"), ("V", "V"), ("C", "F")]
+            .into_iter()
+            .collect();
 }
 
 pub fn var_to_si_unit(var: &str) -> Option<&'static str> {

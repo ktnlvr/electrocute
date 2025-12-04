@@ -1,7 +1,6 @@
 use std::{
     any::TypeId,
     collections::{HashMap, HashSet},
-    f64::consts::PI,
     mem::size_of,
 };
 
@@ -19,7 +18,8 @@ use crate::{
 
 struct Components {
     buffer: Vec<u8>,
-    stamp_fn: Box<dyn Fn(&[u8], &mut Net, f64, &[u32], &mut [u8])>,
+    stamp_fn: Box<dyn Fn(&[u8], &mut Net, f64, &[u32], &[u8])>,
+    post_stamp_fn: Box<dyn Fn(&[u8], &Net, f64, &[u32], &mut [u8])>,
     describe_fn: Box<dyn Fn(&[u8], &Net, &[u32], &[u8]) -> Vec<(&'static str, c64)>>,
     component_size: usize,
     state_size: usize,
@@ -46,7 +46,20 @@ impl Circuit {
         let components = self.circuit.entry(TypeId::of::<T>()).or_insert(Components {
             buffer: vec![],
             stamp_fn: Box::new(
-                |this: &[u8], net: &mut Net, dt: f64, ts: &[u32], state: &mut [u8]| {
+                |this: &[u8], net: &mut Net, dt: f64, ts: &[u32], state: &[u8]| {
+                    let this: &T = try_from_bytes(this).unwrap();
+                    let state: &T::State = try_from_bytes(state).unwrap();
+
+                    let mut terminals = [0u32; T::TERMINAL_COUNT];
+                    ts.iter().enumerate().for_each(|(i, t)| {
+                        terminals[i] = *t;
+                    });
+
+                    this.stamp(net, dt, terminals, state);
+                },
+            ),
+            post_stamp_fn: Box::new(
+                |this: &[u8], net: &Net, dt: f64, ts: &[u32], state: &mut [u8]| {
                     let this: &T = try_from_bytes(this).unwrap();
                     let state: &mut T::State = try_from_bytes_mut(state).unwrap();
 
@@ -55,7 +68,7 @@ impl Circuit {
                         terminals[i] = *t;
                     });
 
-                    this.stamp(net, dt, terminals, state);
+                    this.post_stamp(net, dt, terminals, state);
                 },
             ),
             describe_fn: Box::new(
