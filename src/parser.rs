@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::HashMap;
 
 use crate::{
@@ -27,9 +28,17 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
         let component_type = &token_line[0];
         let mut terminals: Vec<u32> = Vec::new();
         let mut inner_params: HashMap<String, f64> = HashMap::new();
+        let mut component_name = None;
 
         for tok in token_line.iter().skip(1) {
-            if let Some(eq_pos) = tok.find('=') {
+            if tok.starts_with("\"") {
+                let Some((name, tail)) = tok.split_at(1).1.split_once("\"") else {
+                    panic!();
+                };
+
+                assert!(tail.is_empty());
+                component_name = Some(name.to_string());
+            } else if let Some(eq_pos) = tok.find('=') {
                 let key = &tok[..eq_pos];
                 let value = &tok[eq_pos + 1..];
                 if let Some(val) = parse_si_number(value) {
@@ -51,25 +60,25 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
                 if let Some(&v) = inner_params.get("V") {
                     comp.voltage_volt = v;
                 }
-                circuit.put(comp, terminals.try_into().unwrap());
+                circuit.put_raw(comp, terminals.try_into().unwrap(), component_name);
             }
             "resistor" => {
                 let mut comp = Resistor::default();
                 if let Some(&r) = inner_params.get("R") {
                     comp.resistance_ohm = r;
                 }
-                circuit.put(comp, terminals.try_into().unwrap());
+                circuit.put_raw(comp, terminals.try_into().unwrap(), component_name);
             }
             "ground" => {
                 let comp = Ground::default();
-                circuit.put(comp, terminals.try_into().unwrap());
+                circuit.put_raw(comp, terminals.try_into().unwrap(), component_name);
             }
             "capacitor" => {
                 let mut comp = Capacitor::default();
                 if let Some(&c) = inner_params.get("C") {
                     comp.capacitance_f = c;
                 }
-                circuit.put(comp, terminals.try_into().unwrap());
+                circuit.put_raw(comp, terminals.try_into().unwrap(), component_name);
             }
             _ => panic!("Unknown component type: {}", component_type),
         }

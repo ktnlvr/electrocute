@@ -3,12 +3,14 @@
 use crate::{
     net::Net,
     parser::{generate_circuit, tokenize},
+    printing::print_table,
 };
 
 mod circuit;
 mod component;
 mod net;
 mod parser;
+mod printing;
 mod si;
 
 pub fn main() {
@@ -28,5 +30,6 @@ pub fn main() {
         net.solve();
     }
 
-    circuit.describe(&net);
+    let (headers, rows) = circuit.describe(&net);
+    println!("{}", print_table(headers, rows));
 }

@@ -17,6 +17,7 @@ use crate::{
 };
 
 struct Components {
+    names: Vec<Option<String>>,
     buffer: Vec<u8>,
     stamp_fn: Box<dyn Fn(&[u8], &mut Net, f64, &[u32], &[u8])>,
     post_stamp_fn: Box<dyn Fn(&[u8], &Net, f64, &[u32], &mut [u8])>,
@@ -38,12 +39,14 @@ impl Circuit {
         }
     }
 
-    pub fn put<T: Component>(
+    pub fn put_raw<T: Component>(
         &mut self,
         component: T,
         terminals: [u32; T::TERMINAL_COUNT],
+        name: Option<String>,
     ) -> &mut Self {
         let components = self.circuit.entry(TypeId::of::<T>()).or_insert(Components {
+            names: vec![],
             buffer: vec![],
             stamp_fn: Box::new(
                 |this: &[u8], net: &mut Net, dt: f64, ts: &[u32], state: &[u8]| {
@@ -90,6 +93,7 @@ impl Circuit {
             priority: T::PRIORITY,
         });
 
+        components.names.push(name);
         components.buffer.extend(bytes_of(&component));
         components
             .buffer
@@ -100,6 +104,14 @@ impl Circuit {
         });
 
         self
+    }
+
+    pub fn put<T: Component>(
+        &mut self,
+        component: T,
+        terminals: [u32; T::TERMINAL_COUNT],
+    ) -> &mut Self {
+        self.put_raw(component, terminals, None)
     }
 
     pub fn stamp(&mut self, net: &mut Net, dt: f64) {
@@ -190,8 +202,12 @@ impl Circuit {
         }
     }
 
-    pub fn describe(&mut self, net: &Net) {
-        let mut values = self.circuit.iter_mut().collect::<Vec<_>>();
+    #[must_use]
+    pub fn describe(
+        &self,
+        net: &Net,
+    ) -> (Vec<String>, Vec<(Option<String>, HashMap<String, c64>)>) {
+        let mut values = self.circuit.iter().collect::<Vec<_>>();
         values.sort_by_key(|(_, c)| c.priority);
         let values = values
             .into_iter()
@@ -199,13 +215,11 @@ impl Circuit {
             .copied()
             .collect::<Vec<_>>();
 
-        let mut table = Table::new();
-
         let mut headers = HashSet::<&'static str>::new();
-        let mut rows = Vec::<HashMap<&'static str, c64>>::new();
+        let mut rows = Vec::<(Option<String>, HashMap<String, c64>)>::new();
 
         for i in values {
-            let components = self.circuit.get_mut(&i).unwrap();
+            let components = self.circuit.get(&i).unwrap();
 
             let total_size =
                 components.component_size + components.state_size + components.terminals * 4;
@@ -216,10 +230,10 @@ impl Circuit {
 
             let mut offset = 0;
             while offset + total_size <= components.buffer.len() {
-                let (slice, _) = components.buffer[offset..].split_at_mut(total_size);
+                let (slice, _) = components.buffer[offset..].split_at(total_size);
 
-                let (comp_bytes, rest) = slice.split_at_mut(components.component_size);
-                let (state_bytes, term_bytes) = rest.split_at_mut(components.state_size);
+                let (comp_bytes, rest) = slice.split_at(components.component_size);
+                let (state_bytes, term_bytes) = rest.split_at(components.state_size);
 
                 let comp_bytes: &[u8] = comp_bytes;
                 let mut terminals = [0u32; 8];
@@ -236,42 +250,24 @@ impl Circuit {
                     state_bytes,
                 );
 
+                let name = components.names[offset / total_size].clone();
+
                 headers.extend(described.iter().map(|(k, _)| k));
-                rows.push(described.into_iter().collect::<HashMap<_, _>>());
+                rows.push((
+                    name,
+                    described
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v))
+                        .collect::<HashMap<_, _>>(),
+                ));
 
                 offset += total_size;
             }
         }
 
-        let mut headers = headers.iter().collect::<Vec<_>>();
+        let mut headers = headers.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         headers.sort();
 
-        table.add_row(Row::new(
-            headers
-                .clone()
-                .into_iter()
-                .copied()
-                .map(Cell::new)
-                .collect::<Vec<_>>(),
-        ));
-
-        for row in rows {
-            if row.is_empty() {
-                continue;
-            }
-
-            let r = table.add_row(Row::empty());
-
-            for &&h in &headers {
-                let value = match row.get(h) {
-                    Some(z) => format_complex_si_unitful(*z, var_to_si_unit(h).unwrap_or("")),
-                    None => "".to_string(),
-                };
-
-                r.add_cell(Cell::new(&value));
-            }
-        }
-
-        table.printstd();
+        (headers, rows)
     }
 }
