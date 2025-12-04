@@ -111,7 +111,8 @@ impl Circuit {
             .copied()
             .collect::<Vec<_>>();
 
-        for i in values {
+        // Ordinary stamping
+        for i in values.clone() {
             let components = self.circuit.get_mut(&i).unwrap();
 
             let total_size = components.component_size
@@ -138,6 +139,45 @@ impl Circuit {
                 }
 
                 (components.stamp_fn)(
+                    comp_bytes,
+                    net,
+                    dt,
+                    &terminals[..components.terminals],
+                    state_bytes,
+                );
+
+                offset += total_size;
+            }
+        }
+
+        // post stamp
+        for i in values.clone() {
+            let components = self.circuit.get_mut(&i).unwrap();
+
+            let total_size = components.component_size
+                + components.state_size
+                + components.terminals * std::mem::size_of::<u32>();
+
+            if total_size == 0 {
+                continue;
+            }
+
+            let mut offset = 0;
+            while offset + total_size <= components.buffer.len() {
+                let (slice, _) = components.buffer[offset..].split_at_mut(total_size);
+
+                let (comp_bytes, rest) = slice.split_at_mut(components.component_size);
+                let (state_bytes, term_bytes) = rest.split_at_mut(components.state_size);
+
+                let comp_bytes: &[u8] = comp_bytes;
+                let mut terminals = [0u32; 8];
+                for i in 0..components.terminals {
+                    let start = i * 4;
+                    let end = start + 4;
+                    terminals[i] = u32::from_ne_bytes(term_bytes[start..end].try_into().unwrap());
+                }
+
+                (components.post_stamp_fn)(
                     comp_bytes,
                     net,
                     dt,

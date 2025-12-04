@@ -12,7 +12,7 @@ pub const SI_PREFIXES: &[(f64, &str)] = &[
     (1.0, ""),
     (1e-3, "m"),
     (1e-6, "µ"),
-    (1e-6, "u"),
+    (1e-6, "u"), // duplicate, but that's ok
     (1e-9, "n"),
     (1e-12, "p"),
 ];
@@ -29,30 +29,33 @@ pub fn var_to_si_unit(var: &str) -> Option<&'static str> {
 }
 
 pub fn format_complex_si_unitful(z: c64, unit: &str) -> String {
-    let mut mag = z.norm();
+    let mag = z.norm();
     let angle_deg = z.arg() * 180.0 / PI;
 
     let mut prefix = "";
+    let mut scaled = mag;
+
     for (mult, pre) in SI_PREFIXES.iter() {
-        let scaled = mag / mult;
-        if scaled >= 1.0 && scaled < 1000.0 {
-            mag = scaled;
+        let test = mag / mult;
+        if test >= 1.0 && test < 1000.0 {
+            scaled = test;
             prefix = pre;
             break;
         }
     }
 
-    let sigfigs = 4;
-    let decimal_places = if mag == 0.0 {
-        0
-    } else {
-        let digits = mag.abs().log10().floor() as i32 + 1;
-        (sigfigs as i32 - digits).max(0)
+    let decimal_places = {
+        let digits = scaled.abs().log10().floor() as i32 + 1;
+        (5 - digits).max(0) as usize
     };
 
-    let formatted_mag = format!("{:.*}", decimal_places as usize, mag);
-    let formatted_angle = format!("{:.2}", angle_deg);
+    let formatted_mag = if scaled >= 1000.0 || scaled < 1e-12 {
+        format!("{:.3E}", mag)
+    } else {
+        format!("{:.*}", decimal_places, scaled)
+    };
 
+    let formatted_angle = format!("{:.1}", angle_deg);
     format!("{}{}{} ∠{}°", formatted_mag, prefix, unit, formatted_angle)
 }
 

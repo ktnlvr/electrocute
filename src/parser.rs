@@ -66,7 +66,6 @@ pub fn generate_circuit(tokens: Vec<Vec<String>>) -> Circuit {
             }
             "capacitor" => {
                 let mut comp = Capacitor::default();
-                println!("{:?}", inner_params);
                 if let Some(&c) = inner_params.get("C") {
                     comp.capacitance_f = c;
                 }

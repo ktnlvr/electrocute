@@ -17,7 +17,7 @@ pub fn main() {
 
     let mut circuit = generate_circuit(tokens);
 
-    const STEPS: usize = 10;
+    const STEPS: usize = 10000;
 
     let mut net = Net::new(3);
     for _ in 0..STEPS {
@@ -25,9 +25,8 @@ pub fn main() {
 
         net.reset();
         circuit.stamp(&mut net, dt);
-
         net.solve();
-        circuit.describe(&net);
-        println!("");
     }
+
+    circuit.describe(&net);
 }
