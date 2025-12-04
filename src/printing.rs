@@ -94,14 +94,12 @@ fn min_max(points: &[(f64, f64)]) -> Option<((f64, f64), (f64, f64))> {
 pub fn print_chart(chart_name: impl ToString, points: Vec<(f64, f64)>) -> String {
     let ((x_mi, y_mi), (x_ma, y_ma)) = min_max(&points[..]).unwrap_or(((0., 0.), (0., 0.)));
 
-    let continous: Vec<Vec<_>> = continuous_segments(&points)
+    let continuous: Vec<Vec<_>> = continuous_segments(&points)
         .iter()
         .map(|v| v.iter().map(|(x, y)| (*x as f32, *y as f32)).collect())
         .collect();
 
-    println!("{:?}", continous);
-
-    let shapes: Vec<Shape<'_>> = continous
+    let shapes: Vec<Shape<'_>> = continuous
         .iter()
         .map(|points| Shape::Lines(&points[..]))
         .collect();

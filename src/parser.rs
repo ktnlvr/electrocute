@@ -17,8 +17,8 @@ pub enum Command {
         parameters: HashMap<String, c64>,
     },
     Graph {
-        x: (String, String),
-        y: (String, String),
+        x: (Option<String>, String),
+        y: (Option<String>, String),
     },
 }
 
@@ -29,7 +29,19 @@ pub fn tokenize(input: &str) -> Vec<Vec<String>> {
         .map(|s| s.split_ascii_whitespace().map(|s| s.to_owned()).collect())
         .collect()
 }
-pub fn generate_commands(tokens: Vec<Vec<String>>) -> Vec<Command> {
+
+fn parse_graph_arg(arg: &str) -> (Option<String>, String) {
+    let parts: Vec<&str> = arg.split('_').collect();
+    if parts.len() == 2 {
+        (Some(parts[0].to_string()), parts[1].to_string())
+    } else if parts.len() == 1 {
+        (None, parts[0].to_string())
+    } else {
+        panic!("Invalid graph argument format: {}", arg);
+    }
+}
+
+pub fn parse_commands(tokens: Vec<Vec<String>>) -> Vec<Command> {
     let mut commands = Vec::new();
 
     for token_line in tokens {
@@ -45,21 +57,8 @@ pub fn generate_commands(tokens: Vec<Vec<String>>) -> Vec<Command> {
                 panic!("Invalid .graph command format");
             }
 
-            let x = {
-                let parts: Vec<&str> = token_line[1].split('_').collect();
-                if parts.len() != 2 {
-                    panic!("Invalid .graph x argument format");
-                }
-                (parts[0].to_string(), parts[1].to_string())
-            };
-
-            let y = {
-                let parts: Vec<&str> = token_line[2].split('_').collect();
-                if parts.len() != 2 {
-                    panic!("Invalid .graph y argument format");
-                }
-                (parts[0].to_string(), parts[1].to_string())
-            };
+            let x = parse_graph_arg(&token_line[1]);
+            let y = parse_graph_arg(&token_line[2]);
 
             commands.push(Command::Graph { x, y });
             continue;

@@ -114,7 +114,7 @@ impl Circuit {
         self.put_raw(component, terminals, None)
     }
 
-    pub fn describe_component(&mut self, net: &Net, name: &str, value: &str) -> c64 {
+    pub fn get_component_parameter(&mut self, net: &Net, name: &str, value: &str) -> c64 {
         for components in self.circuit.values() {
             let total_size =
                 components.component_size + components.state_size + components.terminals * 4;

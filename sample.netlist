@@ -5,4 +5,4 @@ resistor    "R2"        in out      R=10k
 ground                  out
 
 -- Graph resistance over voltage
-.graph R1_I R1_V
+.graph C1_V t
