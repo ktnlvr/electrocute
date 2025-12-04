@@ -114,6 +114,51 @@ impl Circuit {
         self.put_raw(component, terminals, None)
     }
 
+    pub fn describe_component(&mut self, net: &Net, name: &str, value: &str) -> c64 {
+        for components in self.circuit.values() {
+            let total_size =
+                components.component_size + components.state_size + components.terminals * 4;
+            if total_size == 0 {
+                continue;
+            }
+
+            let mut offset = 0;
+            while offset + total_size <= components.buffer.len() {
+                let (slice, _) = components.buffer[offset..].split_at(total_size);
+                let (comp_bytes, rest) = slice.split_at(components.component_size);
+                let (state_bytes, term_bytes) = rest.split_at(components.state_size);
+
+                let comp_bytes: &[u8] = comp_bytes;
+                let mut terminals = [0u32; 8];
+                for i in 0..components.terminals {
+                    let start = i * 4;
+                    let end = start + 4;
+                    terminals[i] = u32::from_ne_bytes(term_bytes[start..end].try_into().unwrap());
+                }
+
+                let described = (components.describe_fn)(
+                    comp_bytes,
+                    net,
+                    &terminals[..components.terminals],
+                    state_bytes,
+                );
+
+                let comp_name = components.names[offset / total_size].as_deref();
+                if comp_name == Some(name) {
+                    for (k, v) in described {
+                        if k == value {
+                            return v;
+                        }
+                    }
+                }
+
+                offset += total_size;
+            }
+        }
+
+        c64::new(0.0, 0.0)
+    }
+
     pub fn stamp(&mut self, net: &mut Net, dt: f64) {
         let mut values = self.circuit.iter_mut().collect::<Vec<_>>();
         values.sort_by_key(|(_, c)| c.priority);

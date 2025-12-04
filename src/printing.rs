@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use prettytable::{Cell, Row, Table};
+use textplots::{Chart, Plot, Shape};
 
 use crate::{
     net::c64,
@@ -8,7 +9,7 @@ use crate::{
 };
 
 pub fn print_table(
-    mut headers: Vec<String>,
+    headers: Vec<String>,
     rows: Vec<(Option<String>, HashMap<String, c64>)>,
 ) -> String {
     let mut table = Table::new();
@@ -42,4 +43,78 @@ pub fn print_table(
     }
 
     table.to_string()
+}
+
+fn continuous_segments(points: &[(f64, f64)]) -> Vec<Vec<(f64, f64)>> {
+    let mut segments = Vec::new();
+    let mut current_segment = Vec::new();
+
+    for &(x, y) in points {
+        if x.is_finite() && y.is_finite() {
+            current_segment.push((x, y));
+        } else if !current_segment.is_empty() {
+            segments.push(current_segment);
+            current_segment = Vec::new();
+        }
+    }
+
+    if !current_segment.is_empty() {
+        segments.push(current_segment);
+    }
+
+    segments
+}
+
+fn min_max(points: &[(f64, f64)]) -> Option<((f64, f64), (f64, f64))> {
+    let mut min_point: Option<(f64, f64)> = None;
+    let mut max_point: Option<(f64, f64)> = None;
+
+    for &(x, y) in points {
+        if !x.is_finite() || !y.is_finite() {
+            continue;
+        }
+
+        min_point = Some(match min_point {
+            None => (x, y),
+            Some((min_x, min_y)) => (min_x.min(x), min_y.min(y)),
+        });
+
+        max_point = Some(match max_point {
+            None => (x, y),
+            Some((max_x, max_y)) => (max_x.max(x), max_y.max(y)),
+        });
+    }
+
+    match (min_point, max_point) {
+        (Some(min), Some(max)) => Some((min, max)),
+        _ => None,
+    }
+}
+
+pub fn print_chart(chart_name: impl ToString, points: Vec<(f64, f64)>) -> String {
+    let ((x_mi, y_mi), (x_ma, y_ma)) = min_max(&points[..]).unwrap_or(((0., 0.), (0., 0.)));
+
+    let continous: Vec<Vec<_>> = continuous_segments(&points)
+        .iter()
+        .map(|v| v.iter().map(|(x, y)| (*x as f32, *y as f32)).collect())
+        .collect();
+
+    println!("{:?}", continous);
+
+    let shapes: Vec<Shape<'_>> = continous
+        .iter()
+        .map(|points| Shape::Lines(&points[..]))
+        .collect();
+
+    let mut chart =
+        Chart::new_with_y_range(180, 60, x_mi as f32, x_ma as f32, y_mi as f32, y_ma as f32);
+
+    let mut c = &mut chart;
+    for shape in &shapes {
+        c = c.lineplot(shape);
+    }
+
+    c.axis();
+    c.figures();
+    format!("{}\n{}", chart_name.to_string(), c.to_string())
 }
