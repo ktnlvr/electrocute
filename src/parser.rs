@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     circuit::Circuit,
-    component::{Capacitor, DC1Source, Ground, Inductor, Resistor},
+    component::{AC1Source, Capacitor, DC1Source, Ground, Inductor, Resistor},
     net::c64,
     si::parse_si_number,
 };
@@ -166,6 +166,19 @@ impl CircuitBuilder {
                         let mut comp = Inductor::default();
                         if let Some(&c) = parameters.get("L") {
                             comp.inductance_h = c.re;
+                        }
+                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                    }
+                    "ac-source-1-terminal" => {
+                        let mut comp = AC1Source::default();
+                        if let Some(&c) = parameters.get("A") {
+                            comp.amplitude_volt = c.re;
+                        }
+                        if let Some(&c) = parameters.get("f") {
+                            comp.frequency_hz = c.re;
+                        }
+                        if let Some(&c) = parameters.get("phi") {
+                            comp.phase_rad = c.re;
                         }
                         circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
                     }

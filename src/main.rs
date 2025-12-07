@@ -40,7 +40,7 @@ pub fn main() {
 
     let mut circuit = builder.build();
 
-    const STEPS: usize = 100;
+    const STEPS: usize = 100000;
 
     let mut net = Net::new(3);
     let mut total_t = 0.;

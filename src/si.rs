@@ -53,7 +53,9 @@ pub fn format_complex_si_unitful(z: c64, unit: &str) -> String {
         }
     }
 
-    let decimal_places = {
+    let decimal_places = if scaled == 0.0 {
+        4
+    } else {
         let digits = scaled.abs().log10().floor() as i32 + 1;
         (5 - digits).max(0) as usize
     };
@@ -64,7 +66,15 @@ pub fn format_complex_si_unitful(z: c64, unit: &str) -> String {
         format!("{:.*}", decimal_places, scaled)
     };
 
-    let formatted_angle = format!("{:.1}", angle_deg);
+    let formatted_angle = format!(
+        "{:.1}",
+        if angle_deg < 0. {
+            180. + angle_deg
+        } else {
+            angle_deg
+        }
+    );
+
     format!("{}{}{} ∠{}°", formatted_mag, prefix, unit, formatted_angle)
 }
 
