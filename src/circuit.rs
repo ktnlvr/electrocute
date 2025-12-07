@@ -153,7 +153,6 @@ impl Circuit {
                 );
 
                 let comp_name = components.names[offset / total_size].as_deref();
-                println!("{:?}", comp_name);
 
                 if comp_name == Some(name) {
                     for (k, v) in described {

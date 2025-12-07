@@ -125,3 +125,87 @@ impl Component for Capacitor {
         }
     }
 }
+
+#[derive(Pod, Zeroable, Clone, Copy, Default)]
+#[repr(C)]
+pub struct Inductor {
+    pub inductance_h: f64,
+}
+
+#[derive(Pod, Zeroable, Clone, Copy, Default)]
+#[repr(C)]
+pub struct InductorState {
+    i_old_re: f64,
+    i_old_im: f64,
+    di_per_dt_re: f64,
+    di_per_dt_im: f64,
+}
+
+impl Component for Inductor {
+    type State = InductorState;
+
+    const TERMINAL_COUNT: usize = 2;
+    const PRIORITY: usize = 10;
+    const PARAMETERS: &[&'static str] = &["L", "V", "I", "P"];
+
+    fn stamp(
+        &self,
+        net: &mut Net,
+        dt: f64,
+        [n1, n2]: [u32; Self::TERMINAL_COUNT],
+        state: &Self::State,
+    ) {
+        let g_eq = c64::new(dt / self.inductance_h, 0.);
+        let i_prev = c64::new(state.i_old_re, state.i_old_im);
+
+        let i_hist = i_prev;
+
+        net.add_a(n1, n1, g_eq);
+        net.add_a(n1, n2, -g_eq);
+        net.add_a(n2, n1, -g_eq);
+        net.add_a(n2, n2, g_eq);
+
+        net.add_b(n1, -i_hist);
+        net.add_b(n2, i_hist);
+    }
+
+    fn post_stamp(
+        &self,
+        net: &Net,
+        dt: f64,
+        [n1, n2]: [u32; Self::TERMINAL_COUNT],
+        state: &mut Self::State,
+    ) {
+        let v = net.get_voltage_across(n1, n2);
+
+        let di_dt_re = v.re / self.inductance_h;
+        let di_dt_im = v.im / self.inductance_h;
+
+        let i_new_re = state.i_old_re + di_dt_re * dt;
+        let i_new_im = state.i_old_im + di_dt_im * dt;
+
+        state.di_per_dt_re = di_dt_re;
+        state.di_per_dt_im = di_dt_im;
+        state.i_old_re = i_new_re;
+        state.i_old_im = i_new_im;
+    }
+
+    fn parameter(
+        &self,
+        net: &Net,
+        [start, end]: [u32; Self::TERMINAL_COUNT],
+        state: &Self::State,
+        parameter: &str,
+    ) -> Option<c64> {
+        let v = net.get_voltage_across(start, end);
+        let i_prev = c64::new(state.i_old_re, state.i_old_im);
+
+        match parameter {
+            "L" => Some(c64::new(self.inductance_h, 0.)),
+            "V" => Some(v),
+            "I" => Some(i_prev),
+            "P" => Some(v * i_prev),
+            _ => None,
+        }
+    }
+}
