@@ -1,12 +1,11 @@
-use std::num::ParseFloatError;
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone)]
 pub enum ExpressionError {
-    FailedToParseFloat(ParseFloatError),
+    FailedToParseFloat,
     UnknownOperand,
     UnknownOperator,
     InvalidFunction,
-    InvalidVariable,
 }
 
 pub type ExpressionResult<T> = Result<T, ExpressionError>;
@@ -22,7 +21,21 @@ pub enum BinaryOperator {
     Phase,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl Display for BinaryOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let op_str = match self {
+            BinaryOperator::Add => "+",
+            BinaryOperator::Subtract => "-",
+            BinaryOperator::Multiply => "*",
+            BinaryOperator::Divide => "/",
+            BinaryOperator::Exponentiate => "^",
+            BinaryOperator::Phase => "∠",
+        };
+        write!(f, "{}", op_str)
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub enum Expression {
     Imaginary(f64),
     Real(f64),
@@ -42,6 +55,36 @@ pub enum Expression {
     },
 }
 
+impl Display for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::Imaginary(val) => write!(f, "{}i", val),
+            Expression::Real(val) => write!(f, "{}", val),
+            Expression::Variable { name, subscript } => {
+                if let Some(sub) = subscript {
+                    write!(f, "{}_{}", name, sub)
+                } else {
+                    write!(f, "{}", name)
+                }
+            }
+            Expression::Binop { op, lhs, rhs } => {
+                write!(f, "{} {} {}", lhs, op, rhs)
+            }
+            Expression::Bracketed(expr) => write!(f, "({})", expr),
+            Expression::Function { name, arguments } => {
+                let args: Vec<String> = arguments.iter().map(|arg| format!("{}", arg)).collect();
+                write!(f, "{}({})", name, args.join(", "))
+            }
+        }
+    }
+}
+
+impl Debug for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 fn take_whitespace(input: &str) -> &str {
     input.trim_start()
 }
@@ -54,7 +97,6 @@ fn take_operand(input: &str) -> ExpressionResult<(Expression, &str)> {
         return Err(ExpressionError::UnknownOperand);
     }
 
-    // Parentheses => bracketed expression
     if bytes[0] == b'(' {
         let mut depth = 1;
         let mut i = 1;
@@ -75,7 +117,6 @@ fn take_operand(input: &str) -> ExpressionResult<(Expression, &str)> {
         return Ok((Expression::Bracketed(Box::new(expr)), rest));
     }
 
-    // Function call or variable
     let mut i = 0;
     while i < bytes.len()
         && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] > 127)
@@ -142,13 +183,12 @@ fn take_operand(input: &str) -> ExpressionResult<(Expression, &str)> {
             ["-", ""] => -1.0,
             [num, ""] | ["", num] => num
                 .parse::<f64>()
-                .map_err(ExpressionError::FailedToParseFloat)?,
+                .map_err(|_| ExpressionError::FailedToParseFloat)?,
             _ => return Err(ExpressionError::UnknownOperand),
         };
         return Ok((Expression::Imaginary(imag), rest));
     }
 
-    // Otherwise variable without subscript
     Ok((
         Expression::Variable {
             name: token.to_string(),
@@ -158,7 +198,9 @@ fn take_operand(input: &str) -> ExpressionResult<(Expression, &str)> {
     ))
 }
 
-const OPERATORS: [(&'static str, BinaryOperator); 6] = [
+const OPERATORS: [(&'static str, BinaryOperator); 8] = [
+    ("<", BinaryOperator::Phase),
+    ("∠", BinaryOperator::Phase),
     ("**", BinaryOperator::Exponentiate),
     ("^", BinaryOperator::Exponentiate),
     ("+", BinaryOperator::Add),

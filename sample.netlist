@@ -5,5 +5,5 @@ resistor    "R2"        in out      R=10k
 ground                  out
 
 -- Graph resistance over voltage
-.graph C1_V = t
+.graph C1_V=t
 .graph SRC_V t
