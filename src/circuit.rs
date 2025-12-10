@@ -8,12 +8,10 @@ use bytemuck::{
     bytes_of,
     checked::{try_from_bytes, try_from_bytes_mut},
 };
-use prettytable::{Cell, Row, Table};
 
 use crate::{
     component::Component,
     net::{Net, c64},
-    si::{format_complex_si_unitful, var_to_si_unit},
 };
 
 struct Components {
