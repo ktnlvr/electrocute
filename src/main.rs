@@ -9,6 +9,7 @@ use crate::{
 };
 
 mod circuit;
+mod expression;
 mod component;
 mod net;
 mod parser;
