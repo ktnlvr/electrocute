@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::{
     circuit::Circuit,
     component::{AC1Source, Capacitor, DC1Source, Ground, Inductor, Resistor},
+    expression::{Expression, parse_expr},
     net::c64,
     si::parse_si_number,
 };
@@ -17,8 +18,8 @@ pub enum Command {
         parameters: HashMap<String, c64>,
     },
     Graph {
-        x: (Option<String>, String),
-        y: (Option<String>, String),
+        y: (String, Option<String>),
+        x: Expression,
     },
 }
 
@@ -30,14 +31,30 @@ pub fn tokenize(input: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
-fn parse_graph_arg(arg: &str) -> (Option<String>, String) {
-    let parts: Vec<&str> = arg.split('_').collect();
-    if parts.len() == 2 {
-        (Some(parts[0].to_string()), parts[1].to_string())
-    } else if parts.len() == 1 {
-        (None, parts[0].to_string())
+fn parse_graph_arg(arg: &str) -> ((String, Option<String>), &str) {
+    // Find '=' sign (if any) and split
+    if let Some(eq_pos) = arg.find('=') {
+        let (lhs, rhs) = arg.split_at(eq_pos);
+        let lhs = lhs.trim();
+        let rhs = &rhs[1..]; // skip '='
+        let rhs = rhs.trim_start(); // keep rest including spaces for parse_expr
+
+        // Split lhs on '_'
+        let mut word_parts = lhs.splitn(2, '_');
+        let main = word_parts.next().unwrap().to_string();
+        let prefix = word_parts.next().map(|s| s.to_string());
+
+        ((main, prefix), rhs)
     } else {
-        panic!("Invalid graph argument format: {}", arg);
+        // No '=' present, treat as previous
+        let first_space = arg.find(' ').unwrap_or(arg.len());
+        let (first_word, rest) = arg.split_at(first_space);
+
+        let mut word_parts = first_word.splitn(2, '_');
+        let main = word_parts.next().unwrap().to_string();
+        let prefix = word_parts.next().map(|s| s.to_string());
+
+        ((main, prefix), rest)
     }
 }
 
@@ -51,16 +68,21 @@ pub fn parse_commands(tokens: Vec<Vec<String>>) -> Vec<Command> {
 
         let first_token = &token_line[0];
 
-        // Handle graph commands
         if first_token.starts_with(".graph") {
-            if token_line.len() != 3 {
+            if token_line.len() < 2 {
                 panic!("Invalid .graph command format");
             }
 
-            let x = parse_graph_arg(&token_line[1]);
-            let y = parse_graph_arg(&token_line[2]);
+            // Join remaining tokens so we can handle spaces around '='
+            let arg = token_line[1..].join(" ");
+            let (y, expr_str) = parse_graph_arg(&arg);
+            let (x, rest) = parse_expr(expr_str).unwrap();
+            assert!(
+                rest.trim().is_empty(),
+                "Unexpected extra tokens after expression"
+            );
 
-            commands.push(Command::Graph { x, y });
+            commands.push(Command::Graph { y, x });
             continue;
         }
 
