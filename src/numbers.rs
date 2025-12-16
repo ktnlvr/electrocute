@@ -2,14 +2,14 @@ use nalgebra::{Complex, DMatrix, DVector};
 
 pub type c64 = Complex<f64>;
 
-pub struct Net {
+pub struct Numbers {
     dim: usize,
     pub a: DMatrix<c64>,
     pub x: DVector<c64>,
     pub b: DVector<c64>,
 }
 
-impl Net {
+impl Numbers {
     pub fn new(dim: usize) -> Self {
         // Ax = b
         Self {

@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use crate::{
     circuit::Circuit,
     component::{AC1Source, Capacitor, DC1Source, Ground, Inductor, Resistor},
-    expression::{Expression, parse_expr},
-    net::c64,
+    numbers::c64,
     si::parse_si_number,
 };
 
@@ -16,10 +15,6 @@ pub enum Command {
         name: Option<String>,
         terminals: Vec<String>,
         parameters: HashMap<String, c64>,
-    },
-    Graph {
-        y: (String, Option<String>),
-        x: Expression,
     },
 }
 
@@ -67,24 +62,6 @@ pub fn parse_commands(tokens: Vec<Vec<String>>) -> Vec<Command> {
         }
 
         let first_token = &token_line[0];
-
-        if first_token.starts_with(".graph") {
-            if token_line.len() < 2 {
-                panic!("Invalid .graph command format");
-            }
-
-            // Join remaining tokens so we can handle spaces around '='
-            let arg = token_line[1..].join(" ");
-            let (y, expr_str) = parse_graph_arg(&arg);
-            let (x, rest) = parse_expr(expr_str).unwrap();
-            assert!(
-                rest.trim().is_empty(),
-                "Unexpected extra tokens after expression"
-            );
-
-            commands.push(Command::Graph { y, x });
-            continue;
-        }
 
         let component_type = first_token.clone();
         let mut terminals = Vec::new();

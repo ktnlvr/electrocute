@@ -4,7 +4,7 @@ use prettytable::{Cell, Row, Table};
 use textplots::{Chart, Plot, Shape};
 
 use crate::{
-    net::c64,
+    numbers::c64,
     si::{format_complex_si_unitful, var_to_si_unit},
 };
 

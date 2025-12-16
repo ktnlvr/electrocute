@@ -1,9 +1,4 @@
-ac-source-1-terminal "SRC"   in          A=5 f=50k phi=2
-resistor    "R1"        in outc     R=5k
-capacitor   "C1"        outc out    C=10m
-resistor    "R2"        in out      R=10k
-ground                  out
-
--- Graph resistance over voltage
-.graph C1_V=t
-.graph SRC_V t
+dc-source-1-terminal    "SRC"   in          V=5
+resistor                "R1"    in out      R=5k
+resistor                "R2"    in out      R=10k
+ground                          out

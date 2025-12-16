@@ -1,6 +1,6 @@
 use bytemuck::Pod;
 
-use crate::net::{Net, c64};
+use crate::numbers::{Numbers, c64};
 
 mod passive;
 mod sources;
@@ -16,7 +16,7 @@ pub trait Component: Pod {
 
     fn stamp(
         &self,
-        net: &mut Net,
+        net: &mut Numbers,
         dt: f64,
         terminals: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
@@ -24,7 +24,7 @@ pub trait Component: Pod {
 
     fn post_stamp(
         &self,
-        _net: &Net,
+        _net: &Numbers,
         _dt: f64,
         _terminals: [u32; Self::TERMINAL_COUNT],
         _state: &mut Self::State,
@@ -33,7 +33,7 @@ pub trait Component: Pod {
 
     fn parameter(
         &self,
-        _net: &Net,
+        _net: &Numbers,
         _terminals: [u32; Self::TERMINAL_COUNT],
         _state: &Self::State,
         _parameter: &str,

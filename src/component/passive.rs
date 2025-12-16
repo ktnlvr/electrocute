@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{
     component::Component,
-    net::{Net, c64},
+    numbers::{Numbers, c64},
 };
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
@@ -17,7 +17,7 @@ impl Component for Resistor {
     const PRIORITY: usize = 10;
     const PARAMETERS: &[&'static str] = &["R", "V", "I", "P"];
 
-    fn stamp(&self, net: &mut Net, _: f64, [n1, n2]: [u32; 2], _: &Self::State) {
+    fn stamp(&self, net: &mut Numbers, _: f64, [n1, n2]: [u32; 2], _: &Self::State) {
         let y = c64::new(1. / self.resistance_ohm, 0.);
 
         net.add_a(n1, n1, y);
@@ -28,7 +28,7 @@ impl Component for Resistor {
 
     fn parameter(
         &self,
-        net: &Net,
+        net: &Numbers,
         [start, end]: [u32; Self::TERMINAL_COUNT],
         _: &Self::State,
         parameter: &str,
@@ -70,7 +70,7 @@ impl Component for Capacitor {
 
     fn stamp(
         &self,
-        net: &mut Net,
+        net: &mut Numbers,
         dt: f64,
         [n1, n2]: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
@@ -90,7 +90,7 @@ impl Component for Capacitor {
 
     fn post_stamp(
         &self,
-        net: &Net,
+        net: &Numbers,
         dt: f64,
         [n1, n2]: [u32; Self::TERMINAL_COUNT],
         state: &mut Self::State,
@@ -104,7 +104,7 @@ impl Component for Capacitor {
 
     fn parameter(
         &self,
-        net: &Net,
+        net: &Numbers,
         [start, end]: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
         parameter: &str,
@@ -150,7 +150,7 @@ impl Component for Inductor {
 
     fn stamp(
         &self,
-        net: &mut Net,
+        net: &mut Numbers,
         dt: f64,
         [n1, n2]: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
@@ -171,7 +171,7 @@ impl Component for Inductor {
 
     fn post_stamp(
         &self,
-        net: &Net,
+        net: &Numbers,
         dt: f64,
         [n1, n2]: [u32; Self::TERMINAL_COUNT],
         state: &mut Self::State,
@@ -192,7 +192,7 @@ impl Component for Inductor {
 
     fn parameter(
         &self,
-        net: &Net,
+        net: &Numbers,
         [start, end]: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
         parameter: &str,

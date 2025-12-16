@@ -1,15 +1,11 @@
 #![feature(generic_const_exprs)]
 
-use crate::{
-    net::Net,
-    parser::{CircuitBuilder, parse_commands, tokenize},
-    printing::print_table,
-};
+use crate::parser::{CircuitBuilder, parse_commands, tokenize};
 
 mod circuit;
 mod component;
 mod expression;
-mod net;
+mod numbers;
 mod parser;
 mod printing;
 mod si;
@@ -30,18 +26,10 @@ pub fn main() {
 
     const STEPS: usize = 100000;
 
-    let mut net = Net::new(3);
-    let mut total_t = 0.;
     for _ in 0..STEPS {
         let dt = 0.01;
 
-        net.reset();
-        circuit.stamp(&mut net, dt);
-        net.solve();
-
-        total_t += dt;
+        circuit.stamp_all(dt);
+        circuit.solve();
     }
-
-    let (headers, rows) = circuit.describe(&net);
-    println!("{}", print_table(headers, rows));
 }

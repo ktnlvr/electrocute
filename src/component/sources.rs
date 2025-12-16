@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{
     component::Component,
-    net::{Net, c64},
+    numbers::{Numbers, c64},
 };
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
@@ -19,7 +19,7 @@ impl Component for DC1Source {
     const PRIORITY: usize = 25;
     const PARAMETERS: &[&'static str] = &["V", "P"];
 
-    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; 1], _: &Self::State) {
+    fn stamp(&self, net: &mut Numbers, _: f64, [n]: [u32; 1], _: &Self::State) {
         net.clear_row_jacobian(n);
         net.add_a(n, n, c64::ONE);
         net.set_b(n, c64::new(self.voltage_volt, 0.));
@@ -27,7 +27,7 @@ impl Component for DC1Source {
 
     fn parameter(
         &self,
-        _: &Net,
+        _: &Numbers,
         _: [u32; Self::TERMINAL_COUNT],
         _: &Self::State,
         parameter: &str,
@@ -49,7 +49,7 @@ impl Component for Ground {
     const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
 
-    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; Self::TERMINAL_COUNT], _: &Self::State) {
+    fn stamp(&self, net: &mut Numbers, _: f64, [n]: [u32; Self::TERMINAL_COUNT], _: &Self::State) {
         net.clear_row_jacobian(n);
         net.add_a(n, n, c64::ONE);
         net.set_b(n, c64::ZERO);
@@ -70,7 +70,7 @@ impl Component for AC1Source {
     const PRIORITY: usize = 25;
     const PARAMETERS: &[&'static str] = &["V", "P", "f", "phi", "t"];
 
-    fn stamp(&self, net: &mut Net, _: f64, [n]: [u32; 1], t: &Self::State) {
+    fn stamp(&self, net: &mut Numbers, _: f64, [n]: [u32; 1], t: &Self::State) {
         net.clear_row_jacobian(n);
         net.add_a(n, n, c64::ONE);
 
@@ -82,7 +82,7 @@ impl Component for AC1Source {
 
     fn post_stamp(
         &self,
-        _net: &Net,
+        _net: &Numbers,
         dt: f64,
         _terminals: [u32; Self::TERMINAL_COUNT],
         _state: &mut Self::State,
@@ -92,7 +92,7 @@ impl Component for AC1Source {
 
     fn parameter(
         &self,
-        _: &Net,
+        _: &Numbers,
         _: [u32; Self::TERMINAL_COUNT],
         &t: &Self::State,
         parameter: &str,

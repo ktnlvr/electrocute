@@ -2,7 +2,7 @@ use std::{collections::HashMap, f64::consts::PI};
 
 use lazy_static::lazy_static;
 
-use crate::net::c64;
+use crate::numbers::c64;
 
 pub const SI_PREFIXES: &[(f64, &str)] = &[
     (1e30, "Q"),
