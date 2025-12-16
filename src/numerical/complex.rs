@@ -5,15 +5,15 @@ use bytemuck::{Pod, Zeroable};
 #[derive(Clone, Copy, Pod, Zeroable, PartialEq, Debug, Default)]
 #[repr(C)]
 pub struct c64 {
-    pub im: f64,
     pub re: f64,
+    pub im: f64,
 }
 
 impl c64 {
     pub const ZERO: Self = c64::new(0., 0.);
     pub const ONE: Self = c64::new(1., 0.);
 
-    pub const fn new(im: f64, re: f64) -> Self {
+    pub const fn new(re: f64, im: f64) -> Self {
         Self { im, re }
     }
 

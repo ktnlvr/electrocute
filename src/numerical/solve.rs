@@ -34,6 +34,8 @@ pub fn solve(
 
 #[cfg(test)]
 mod tests {
+    use std::f64::EPSILON;
+
     use super::*;
 
     #[test]
@@ -58,6 +60,12 @@ mod tests {
             &vector[..],
         );
 
-        println!("{:?}", result);
+        assert!((result[0].re - 20.).abs() < EPSILON);
+        assert!((result[1].re - 8.).abs() < EPSILON);
+        assert!((result[2].re - 9.).abs() < EPSILON);
+
+        assert!((result[0].im).abs() < EPSILON);
+        assert!((result[1].im).abs() < EPSILON);
+        assert!((result[2].im).abs() < EPSILON);
     }
 }
