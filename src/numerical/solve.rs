@@ -1,4 +1,4 @@
-use crate::numbers::c64;
+use crate::numerical::complex::c64;
 
 fn sparse_matmul(
     values: &[c64],

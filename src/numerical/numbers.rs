@@ -1,8 +1,6 @@
 use std::{collections::HashMap, mem::replace};
 
-use nalgebra::Complex;
-
-pub type c64 = Complex<f64>;
+use crate::numerical::complex::c64;
 
 pub struct CSR {
     map: HashMap<(u32, u32), usize>,

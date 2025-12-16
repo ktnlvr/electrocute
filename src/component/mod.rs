@@ -1,12 +1,12 @@
 use bytemuck::Pod;
 
-use crate::numbers::{Numbers, c64};
-
 mod passive;
 mod sources;
 
 pub use passive::*;
 pub use sources::*;
+
+use crate::numerical::{Numbers, c64};
 
 pub trait Component: Pod {
     type State: Pod + Clone + Copy + Default;

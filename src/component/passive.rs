@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{
     component::Component,
-    numbers::{Numbers, c64},
+    numerical::{Numbers, c64},
 };
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]

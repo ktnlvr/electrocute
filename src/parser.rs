@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::{
     circuit::Circuit,
     component::{AC1Source, Capacitor, DC1Source, Ground, Inductor, Resistor},
-    numbers::c64,
+    numerical::c64,
     si::parse_si_number,
 };
 

@@ -5,7 +5,7 @@ use bytemuck::{
     checked::{try_from_bytes, try_from_bytes_mut},
 };
 
-use crate::{component::Component, numbers::Numbers};
+use crate::{component::Component, numerical::Numbers};
 
 struct Components {
     names: Vec<Option<String>>,

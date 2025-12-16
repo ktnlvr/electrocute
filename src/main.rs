@@ -5,11 +5,10 @@ use crate::parser::{CircuitBuilder, parse_commands, tokenize};
 mod circuit;
 mod component;
 mod expression;
-mod numbers;
+mod numerical;
 mod parser;
 mod printing;
 mod si;
-mod solve;
 
 pub fn main() {
     let netlist = include_str!("../sample.netlist");

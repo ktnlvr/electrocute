@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{
     component::Component,
-    numbers::{Numbers, c64},
+    numerical::{Numbers, c64},
 };
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy, Default)]
@@ -75,7 +75,7 @@ impl Component for AC1Source {
         net.add_a(n, n, c64::ONE);
 
         let angle = 2.0 * PI * self.frequency_hz * t + self.phase_rad;
-        let voltage = c64::from_polar(self.amplitude_volt, angle);
+        let voltage = c64::polar(self.amplitude_volt, angle);
 
         net.set_b(n, voltage);
     }
