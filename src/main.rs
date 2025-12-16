@@ -9,6 +9,7 @@ mod numbers;
 mod parser;
 mod printing;
 mod si;
+mod solve;
 
 pub fn main() {
     let netlist = include_str!("../sample.netlist");
