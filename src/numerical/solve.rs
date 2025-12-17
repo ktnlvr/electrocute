@@ -67,11 +67,11 @@ fn vec_add_in_place(a: &mut [c64], b: &[c64]) {
 
 // BiCGSTAB
 pub fn solve(
-    values: Vec<c64>,
-    column_indices: Vec<u32>,
-    row_pointers: Vec<u32>,
+    values: &[c64],
+    column_indices: &[u32],
+    row_pointers: &[u32],
     mut x: Vec<c64>,
-    b: Vec<c64>,
+    b: &[c64],
     max_iters: u32,
     tol: f64,
 ) -> Vec<c64> {
@@ -199,11 +199,11 @@ mod tests {
         let x0 = vec![c64::new(0.0, 0.0); 3];
 
         let x = solve(
-            values.clone(),
-            column_indices.clone(),
-            row_pointers.clone(),
+            &values,
+            &column_indices,
+            &row_pointers,
             x0,
-            b.clone(),
+            &b,
             1000,
             1e-8,
         );

@@ -1,9 +1,10 @@
-use std::{collections::HashMap, mem::replace};
+use std::collections::{BTreeMap, HashMap};
 
-use crate::numerical::complex::c64;
+use crate::numerical::{complex::c64, solve};
 
-pub struct CSR {
-    map: HashMap<(u32, u32), usize>,
+// CSR
+pub struct LinearEquations {
+    value_map: HashMap<(u32, u32), usize>,
     column_indices: Vec<u32>,
     row_pointers: Vec<u32>,
     a: Vec<c64>,
@@ -11,136 +12,199 @@ pub struct CSR {
     b: Vec<c64>,
 }
 
-pub struct COO {
-    dimensions: usize,
-    data: Vec<c64>,
-}
+impl LinearEquations {
+    pub fn from_coordinates(coordinates: impl IntoIterator<Item = (u32, u32)>) -> Self {
+        let compressed = coordinates.into_iter().fold(
+            BTreeMap::<u32, Vec<u32>>::default(),
+            |mut acc, (i, j)| {
+                acc.entry(i).or_insert_with(Vec::new).push(j);
+                acc
+            },
+        );
 
-pub enum Numbers {
-    Coordinates(COO),
-    Compressed(CSR),
-}
-
-pub const NULL_COMPLEX_NUMBERS: c64 = c64::new(f64::NEG_INFINITY, f64::INFINITY);
-
-impl Numbers {
-    pub fn new(dimensions: usize) -> Self {
-        Self::Coordinates(COO {
-            dimensions,
-            data: vec![NULL_COMPLEX_NUMBERS; dimensions * dimensions],
-        })
-    }
-
-    fn bake(&mut self) -> &mut CSR {
-        if let Numbers::Compressed(baked) = self {
-            return baked;
-        }
-
-        let Numbers::Coordinates(coords) = replace(
-            self,
-            Numbers::Coordinates(COO {
-                dimensions: 0,
-                data: Vec::new(),
-            }),
-        ) else {
-            unreachable!();
-        };
-
-        let n = coords.dimensions;
-        let mut map = HashMap::new();
-        let mut row_indices = Vec::new();
+        let mut value_map = HashMap::new();
+        let mut row_pointers = Vec::new();
         let mut column_indices = Vec::new();
-        let mut a = Vec::new();
+        let mut nnz = 0;
 
-        for i in 0..n {
-            for j in 0..n {
-                let idx = i * n + j;
-                let value = coords.data[idx];
+        let mut max_row: u32 = 0;
+        let mut max_col: u32 = 0;
 
-                if value != NULL_COMPLEX_NUMBERS {
-                    let k = a.len();
-                    map.insert((i as u32, j as u32), k);
-                    row_indices.push(i as u32);
-                    column_indices.push(j as u32);
-                    a.push(value);
-                }
+        for (i, mut js) in compressed {
+            max_row = max_row.max(i);
+            js.sort_unstable();
+
+            row_pointers.push(nnz as u32);
+
+            for j in js {
+                max_col = max_col.max(j);
+                value_map.insert((i, j), nnz as usize);
+                column_indices.push(j);
+                nnz += 1;
             }
         }
 
-        let baked = CSR {
-            map,
-            row_pointers: row_indices,
+        row_pointers.push(nnz);
+
+        let n_rows = (max_row + 1) as usize;
+        let n_cols = (max_col + 1) as usize;
+
+        LinearEquations {
+            value_map,
             column_indices,
-            a,
-            x: vec![c64::ZERO; n],
-            b: vec![c64::ZERO; n],
-        };
-
-        *self = Numbers::Compressed(baked);
-
-        match self {
-            Numbers::Compressed(baked) => baked,
-            _ => unreachable!(),
+            row_pointers,
+            a: vec![c64::ZERO; nnz as usize],
+            x: vec![c64::ZERO; n_cols],
+            b: vec![c64::ZERO; n_rows],
         }
     }
 
-    fn dimensions(&self) -> usize {
-        match self {
-            Numbers::Coordinates(coordinates) => coordinates.dimensions,
-            Numbers::Compressed(numbers) => numbers.column_indices.len(),
-        }
+    fn dimensions(&self) -> (usize, usize) {
+        (self.b.len(), self.x.len())
     }
 
     pub fn solve(&mut self) {
-        todo!();
+        let x = self.x.clone();
+        self.x = solve(
+            &self.a[..],
+            &self.column_indices[..],
+            &self.row_pointers,
+            x,
+            &self.b,
+            100,
+            1e-6,
+        );
     }
 
-    pub fn reset(&mut self) {
-        let baked = self.bake();
-        baked.a.clear();
-        baked.b.clear();
-    }
+    pub fn clear_row(&mut self, i: u32) {
+        let row = i as usize;
+        let start = self.row_pointers[row] as usize;
+        let end = self.row_pointers[row + 1] as usize;
 
-    pub fn clear_row_jacobian(&mut self, j: u32) {
-        let CSR {
-            row_pointers: row_indices,
-            a,
-            ..
-        } = self.bake();
-        for (&row_j, v) in row_indices.iter().zip(a) {
-            if row_j == j {
-                *v = c64::ZERO;
-            }
+        for k in start..end {
+            self.a[k] = c64::ZERO;
         }
     }
 
     pub fn add_a(&mut self, i: u32, j: u32, value: c64) {
-        let baked = self.bake();
-        let idx = baked.map[&(i, j)];
-        baked.a[idx] += value;
+        if let Some(&k) = self.value_map.get(&(i, j)) {
+            self.a[k] += value;
+        } else {
+            panic!("Attempt to write to non-existent CSR entry ({}, {})", i, j);
+        }
     }
 
     pub fn set_b(&mut self, i: u32, value: c64) {
-        let baked = self.bake();
-        baked.b[i as usize] = value;
+        self.b[i as usize] = value;
     }
 
     pub fn add_b(&mut self, i: u32, value: c64) {
-        let baked = self.bake();
-        baked.b[i as usize] += value;
+        self.b[i as usize] += value;
     }
 
     pub fn get_voltage_across(&self, from: u32, to: u32) -> c64 {
-        match self {
-            Numbers::Coordinates(_) => c64::ZERO,
-            Numbers::Compressed(CSR { x, .. }) => x[from as usize] - x[to as usize],
-        }
+        self.x[from as usize] - self.x[to as usize]
     }
 
     pub fn get_current(&self, i: u32) -> c64 {
-        match self {
-            Numbers::Coordinates(_) => c64::ZERO,
-            Numbers::Compressed(CSR { b, .. }) => b[i as usize],
-        }
+        self.b[i as usize]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::f64::EPSILON;
+
+    use super::*;
+    use crate::numerical::complex::c64;
+
+    #[test]
+    fn test_csr_construction() {
+        let coords = vec![(0, 0), (0, 2), (1, 1), (2, 0), (2, 2)];
+        let le = LinearEquations::from_coordinates(coords);
+
+        let (rows, cols) = le.dimensions();
+        assert_eq!(rows, 3);
+        assert_eq!(cols, 3);
+
+        assert_eq!(le.row_pointers.len(), 4);
+        assert_eq!(le.column_indices, vec![0, 2, 1, 0, 2]);
+
+        assert_eq!(le.value_map.get(&(0, 0)), Some(&0));
+        assert_eq!(le.value_map.get(&(0, 2)), Some(&1));
+        assert_eq!(le.value_map.get(&(1, 1)), Some(&2));
+        assert_eq!(le.value_map.get(&(2, 0)), Some(&3));
+        assert_eq!(le.value_map.get(&(2, 2)), Some(&4));
+    }
+
+    #[test]
+    fn test_add_and_clear_a() {
+        let coords = vec![(0, 0), (0, 1)];
+        let mut le = LinearEquations::from_coordinates(coords);
+
+        le.add_a(0, 0, c64::new(1.0, 0.0));
+        le.add_a(0, 1, c64::new(2.0, 0.0));
+
+        assert_eq!(le.a[0], c64::new(1.0, 0.0));
+        assert_eq!(le.a[1], c64::new(2.0, 0.0));
+
+        le.clear_row(0);
+        assert_eq!(le.a[0], c64::ZERO);
+        assert_eq!(le.a[1], c64::ZERO);
+    }
+
+    #[test]
+    fn test_set_and_add_b() {
+        let coords = vec![(0, 0), (1, 1)];
+        let mut le = LinearEquations::from_coordinates(coords);
+
+        le.set_b(0, c64::new(1.0, 1.0));
+        le.add_b(0, c64::new(2.0, -1.0));
+        le.set_b(1, c64::new(0.5, 0.5));
+
+        assert_eq!(le.b[0], c64::new(3.0, 0.0));
+        assert_eq!(le.b[1], c64::new(0.5, 0.5));
+    }
+
+    #[test]
+    fn test_get_voltage_across() {
+        let coords = vec![(0, 0), (1, 1)];
+        let mut le = LinearEquations::from_coordinates(coords);
+
+        le.x[0] = c64::new(5.0, 0.0);
+        le.x[1] = c64::new(2.0, 0.0);
+
+        let v = le.get_voltage_across(0, 1);
+        assert_eq!(v, c64::new(3.0, 0.0));
+    }
+
+    #[test]
+    fn test_get_current() {
+        let coords = vec![(0, 0)];
+        let mut le = LinearEquations::from_coordinates(coords);
+
+        le.set_b(0, c64::new(4.0, 0.0));
+        let i = le.get_current(0);
+        assert_eq!(i, c64::new(4.0, 0.0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_add_a_invalid_index() {
+        let coords = vec![(0, 0)];
+        let mut le = LinearEquations::from_coordinates(coords);
+        le.add_a(0, 1, c64::new(1.0, 0.0));
+    }
+
+    #[test]
+    fn test_solve() {
+        let mut le = LinearEquations::from_coordinates(vec![(0, 0), (1, 1)]);
+        le.add_a(0, 0, c64::new(2.0, 0.0));
+        le.add_a(1, 1, c64::new(3.0, 0.0));
+        le.set_b(0, c64::new(4.0, 0.0));
+        le.set_b(1, c64::new(9.0, 0.0));
+        le.solve();
+        assert!(le.x[0].re - 2.0 < EPSILON);
+        assert!(le.x[1].re - 3.0 < EPSILON);
     }
 }

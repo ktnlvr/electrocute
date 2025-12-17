@@ -5,13 +5,13 @@ use bytemuck::{
     checked::{try_from_bytes, try_from_bytes_mut},
 };
 
-use crate::{component::Component, numerical::Numbers};
+use crate::{component::Component, numerical::LinearEquations};
 
 struct Components {
     names: Vec<Option<String>>,
     buffer: Vec<u8>,
-    stamp_fn: Box<dyn Fn(&[u8], &mut Numbers, f64, &[u32], &[u8])>,
-    post_stamp_fn: Box<dyn Fn(&[u8], &Numbers, f64, &[u32], &mut [u8])>,
+    stamp_fn: Box<dyn Fn(&[u8], &mut LinearEquations, f64, &[u32], &[u8])>,
+    post_stamp_fn: Box<dyn Fn(&[u8], &LinearEquations, f64, &[u32], &mut [u8])>,
     component_size: usize,
     state_size: usize,
     priority: usize,
@@ -20,14 +20,14 @@ struct Components {
 
 pub struct Circuit {
     circuit: HashMap<TypeId, Components>,
-    numbers: Numbers,
+    equations: LinearEquations,
 }
 
 impl Circuit {
     pub fn new() -> Self {
         Self {
             circuit: Default::default(),
-            numbers: Numbers::new(2),
+            equations: LinearEquations::from_coordinates([]),
         }
     }
 
@@ -41,7 +41,7 @@ impl Circuit {
             names: vec![],
             buffer: vec![],
             stamp_fn: Box::new(
-                |this: &[u8], net: &mut Numbers, dt: f64, ts: &[u32], state: &[u8]| {
+                |this: &[u8], net: &mut LinearEquations, dt: f64, ts: &[u32], state: &[u8]| {
                     let this: &T = try_from_bytes(this).unwrap();
                     let state: &T::State = try_from_bytes(state).unwrap();
 
@@ -54,7 +54,7 @@ impl Circuit {
                 },
             ),
             post_stamp_fn: Box::new(
-                |this: &[u8], net: &Numbers, dt: f64, ts: &[u32], state: &mut [u8]| {
+                |this: &[u8], net: &LinearEquations, dt: f64, ts: &[u32], state: &mut [u8]| {
                     let this: &T = try_from_bytes(this).unwrap();
                     let state: &mut T::State = try_from_bytes_mut(state).unwrap();
 
@@ -122,7 +122,7 @@ impl Circuit {
 
                 (components.stamp_fn)(
                     comp_bytes,
-                    &mut self.numbers,
+                    &mut self.equations,
                     dt,
                     &terminals[..components.terminals],
                     state_bytes,
@@ -160,7 +160,7 @@ impl Circuit {
 
                 (components.post_stamp_fn)(
                     comp_bytes,
-                    &mut self.numbers,
+                    &mut self.equations,
                     dt,
                     &terminals[..components.terminals],
                     state_bytes,
@@ -172,6 +172,6 @@ impl Circuit {
     }
 
     pub fn solve(&mut self) {
-        self.numbers.solve();
+        self.equations.solve();
     }
 }
