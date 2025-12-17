@@ -24,6 +24,10 @@ impl c64 {
         }
     }
 
+    pub fn conj(self) -> Self {
+        c64::new(self.re, -self.im)
+    }
+
     pub fn norm(self) -> f64 {
         (self.re * self.re + self.im * self.im).sqrt()
     }
