@@ -65,6 +65,26 @@ fn vec_add_in_place(a: &mut [c64], b: &[c64]) {
     }
 }
 
+#[inline]
+fn diag(values: &[c64], row_pointers: &[u32], column_indices: &[u32]) -> impl Iterator<Item = c64> {
+    row_pointers
+        .array_windows()
+        .enumerate()
+        .filter_map(|(row, &[start, end])| {
+            let start = start as usize;
+            let end = end as usize;
+
+            column_indices[start..end]
+                .iter()
+                .zip(&values[start..end])
+                .find_map(
+                    |(&col, &val)| {
+                        if col as usize == row { Some(val) } else { None }
+                    },
+                )
+        })
+}
+
 // BiCGSTAB
 pub fn solve(
     values: &[c64],
@@ -75,6 +95,30 @@ pub fn solve(
     max_iters: u32,
     tol: f64,
 ) -> Vec<c64> {
+    // Compute the Jacobi preconditioner
+
+    let mut values = values.into_iter().copied().collect::<Vec<_>>();
+    let diag = diag(&values, row_pointers, column_indices).collect::<Vec<_>>();
+    assert_eq!(diag.len(), row_pointers.len() - 1);
+
+    for row in 0..diag.len() {
+        let start = row_pointers[row] as usize;
+        let end = row_pointers[row + 1] as usize;
+
+        let d_inv = c64::ONE / diag[row];
+
+        for k in start..end {
+            values[k] *= d_inv;
+        }
+    }
+
+    let b = b
+        .into_iter()
+        .copied()
+        .zip(diag)
+        .map(|(a, b)| a / b)
+        .collect::<Vec<_>>();
+
     let a_x0 = sparse_matmul(&values, &column_indices, &row_pointers, &x);
     let mut r = vec_sub(&b, &a_x0);
 

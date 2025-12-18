@@ -1,6 +1,6 @@
 use std::{
     fmt::{Debug, Display},
-    ops::{Add, AddAssign, Div, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub},
 };
 
 use bytemuck::{Pod, Zeroable};
@@ -20,6 +20,14 @@ impl c64 {
 
     pub const fn new(re: f64, im: f64) -> Self {
         Self { im, re }
+    }
+
+    pub const fn real(re: f64) -> Self {
+        Self { re, im: 0. }
+    }
+
+    pub const fn imag(im: f64) -> Self {
+        Self { re: 0., im }
     }
 
     pub fn polar(amplitude: f64, angle_rad: f64) -> Self {
@@ -73,6 +81,12 @@ impl Mul for c64 {
             self.re * rhs.re - self.im * rhs.im,
             self.re * rhs.im + self.im * rhs.re,
         )
+    }
+}
+
+impl MulAssign for c64 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
     }
 }
 
