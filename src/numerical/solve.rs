@@ -198,15 +198,7 @@ mod tests {
         let b = vec![c64::new(1.0, 0.0), c64::new(2.0, 0.0), c64::new(3.0, 0.0)];
         let x0 = vec![c64::new(0.0, 0.0); 3];
 
-        let x = solve(
-            &values,
-            &column_indices,
-            &row_pointers,
-            x0,
-            &b,
-            1000,
-            1e-8,
-        );
+        let x = solve(&values, &column_indices, &row_pointers, x0, &b, 1000, 1e-8);
 
         let ax = sparse_matmul(&values, &column_indices, &row_pointers, &x);
         let residual: Vec<c64> = b

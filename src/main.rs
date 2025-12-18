@@ -2,6 +2,7 @@
 
 use crate::parser::{CircuitBuilder, parse_commands, tokenize};
 
+mod buffer;
 mod circuit;
 mod component;
 mod expression;

@@ -16,7 +16,7 @@ pub trait Component: Pod {
 
     fn stamp(
         &self,
-        net: &mut LinearEquations,
+        le: &mut LinearEquations,
         dt: f64,
         terminals: [u32; Self::TERMINAL_COUNT],
         state: &Self::State,
@@ -24,7 +24,7 @@ pub trait Component: Pod {
 
     fn post_stamp(
         &self,
-        _net: &LinearEquations,
+        _le: &LinearEquations,
         _dt: f64,
         _terminals: [u32; Self::TERMINAL_COUNT],
         _state: &mut Self::State,
@@ -33,7 +33,7 @@ pub trait Component: Pod {
 
     fn parameter(
         &self,
-        _net: &LinearEquations,
+        _le: &LinearEquations,
         _terminals: [u32; Self::TERMINAL_COUNT],
         _state: &Self::State,
         _parameter: &str,

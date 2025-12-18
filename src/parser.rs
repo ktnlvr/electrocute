@@ -141,32 +141,32 @@ impl CircuitBuilder {
                         if let Some(&v) = parameters.get("V") {
                             comp.voltage_volt = v.re;
                         }
-                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
                     }
                     "resistor" => {
                         let mut comp = Resistor::default();
                         if let Some(&r) = parameters.get("R") {
                             comp.resistance_ohm = r.re;
                         }
-                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
                     }
                     "ground" => {
                         let comp = Ground::default();
-                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
                     }
                     "capacitor" => {
                         let mut comp = Capacitor::default();
                         if let Some(&c) = parameters.get("C") {
                             comp.capacitance_f = c.re;
                         }
-                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
                     }
                     "inductor" => {
                         let mut comp = Inductor::default();
                         if let Some(&c) = parameters.get("L") {
                             comp.inductance_h = c.re;
                         }
-                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
                     }
                     "ac-source-1-terminal" => {
                         let mut comp = AC1Source::default();
@@ -179,7 +179,7 @@ impl CircuitBuilder {
                         if let Some(&c) = parameters.get("phi") {
                             comp.phase_rad = c.re;
                         }
-                        circuit.put_raw(comp, term_indices.try_into().unwrap(), name.clone());
+                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
                     }
                     _ => panic!("Unknown component type: {}", component),
                 }

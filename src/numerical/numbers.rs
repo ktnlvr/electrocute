@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::numerical::{complex::c64, solve};
 
 // CSR
+#[derive(Debug)]
 pub struct LinearEquations {
     value_map: HashMap<(u32, u32), usize>,
     column_indices: Vec<u32>,
@@ -77,6 +78,8 @@ impl LinearEquations {
     }
 
     pub fn clear_row(&mut self, i: u32) {
+        println!("{:?}", self);
+
         let row = i as usize;
         let start = self.row_pointers[row] as usize;
         let end = self.row_pointers[row + 1] as usize;
@@ -116,7 +119,6 @@ mod tests {
     use std::f64::EPSILON;
 
     use super::*;
-    use crate::numerical::complex::c64;
 
     #[test]
     fn test_csr_construction() {
