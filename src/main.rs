@@ -33,4 +33,6 @@ pub fn main() {
         circuit.stamp_all(dt);
         circuit.solve();
     }
+
+    println!("{:?}", circuit.equations)
 }

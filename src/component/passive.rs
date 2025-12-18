@@ -16,6 +16,7 @@ impl Component for Resistor {
     const TERMINAL_COUNT: usize = 2;
     const PRIORITY: usize = 10;
     const PARAMETERS: &[&'static str] = &["R", "V", "I", "P"];
+    const ACTIVE_TERMINALS: &[(usize, usize)] = &[(0, 0), (0, 1), (1, 0), (1, 1)];
 
     fn stamp(&self, net: &mut LinearEquations, _: f64, [n1, n2]: [u32; 2], _: &Self::State) {
         let y = c64::new(1. / self.resistance_ohm, 0.);
@@ -67,6 +68,7 @@ impl Component for Capacitor {
     const TERMINAL_COUNT: usize = 2;
     const PRIORITY: usize = 10;
     const PARAMETERS: &[&'static str] = &["C", "V", "I", "P"];
+    const ACTIVE_TERMINALS: &[(usize, usize)] = &[(0, 0), (0, 1), (1, 0), (1, 1)];
 
     fn stamp(
         &self,
@@ -147,6 +149,7 @@ impl Component for Inductor {
     const TERMINAL_COUNT: usize = 2;
     const PRIORITY: usize = 10;
     const PARAMETERS: &[&'static str] = &["L", "V", "I", "P"];
+    const ACTIVE_TERMINALS: &[(usize, usize)] = &[(0, 0), (0, 1), (1, 0), (1, 1)];
 
     fn stamp(
         &self,

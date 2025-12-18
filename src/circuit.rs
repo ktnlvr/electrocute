@@ -12,14 +12,14 @@ struct Components {
 pub struct Circuit {
     names: HashMap<(TypeId, u32), String>,
     circuit: HashMap<TypeId, Components>,
-    equations: LinearEquations,
+    pub equations: LinearEquations,
 }
 
 impl Circuit {
     pub fn new() -> Self {
         Self {
             circuit: Default::default(),
-            equations: LinearEquations::from_coordinates([]),
+            equations: LinearEquations::default(),
             names: Default::default(),
         }
     }
@@ -31,6 +31,13 @@ impl Circuit {
         terminals: [u32; C::TERMINAL_COUNT],
     ) {
         let type_id = TypeId::of::<C>();
+
+        self.equations.add_coordinates(
+            C::ACTIVE_TERMINALS
+                .iter()
+                .copied()
+                .map(|(i, j)| (terminals[i], terminals[j])),
+        );
 
         let components = self.circuit.entry(type_id).or_insert_with(|| Components {
             buffer: ComponentBuffer::new::<C>(),
@@ -46,14 +53,14 @@ impl Circuit {
                     });
             }),
             post_stamp_all_fn: Box::new(|components, le, dt, terminals| {
-                let mut terminal = [0; C::TERMINAL_COUNT];
-                for (i, &v) in terminals.iter().enumerate() {
-                    terminal[i] = v;
-                }
-
-                components.iter_mut::<C>().for_each(|(c, state)| {
-                    c.post_stamp(le, dt, terminal, state);
-                });
+                components
+                    .iter_mut::<C>()
+                    .enumerate()
+                    .for_each(|(i, (c, state))| {
+                        let start = C::TERMINAL_COUNT * i;
+                        let end = C::TERMINAL_COUNT * (i + 1);
+                        c.post_stamp(le, dt, terminals[start..end].try_into().unwrap(), state);
+                    });
             }),
         });
 

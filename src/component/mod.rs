@@ -13,6 +13,7 @@ pub trait Component: Pod {
     const TERMINAL_COUNT: usize;
     const PRIORITY: usize;
     const PARAMETERS: &[&'static str] = &[];
+    const ACTIVE_TERMINALS: &[(usize, usize)] = &[(0, 0)];
 
     fn stamp(
         &self,

@@ -49,7 +49,13 @@ impl Component for Ground {
     const TERMINAL_COUNT: usize = 1;
     const PRIORITY: usize = 25;
 
-    fn stamp(&self, net: &mut LinearEquations, _: f64, [n]: [u32; Self::TERMINAL_COUNT], _: &Self::State) {
+    fn stamp(
+        &self,
+        net: &mut LinearEquations,
+        _: f64,
+        [n]: [u32; Self::TERMINAL_COUNT],
+        _: &Self::State,
+    ) {
         net.clear_row(n);
         net.add_a(n, n, c64::ONE);
         net.set_b(n, c64::ZERO);

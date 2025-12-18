@@ -1,8 +1,13 @@
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use std::{
+    fmt::{Debug, Display},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub},
+};
 
 use bytemuck::{Pod, Zeroable};
 
-#[derive(Clone, Copy, Pod, Zeroable, PartialEq, Debug, Default)]
+use crate::si::format_complex_si;
+
+#[derive(Clone, Copy, Pod, Zeroable, PartialEq, Default)]
 #[repr(C)]
 pub struct c64 {
     pub re: f64,
@@ -89,5 +94,17 @@ impl Div for c64 {
             (self.re * rhs.re + self.im * rhs.im) / denom,
             (self.im * rhs.re - self.re * rhs.im) / denom,
         )
+    }
+}
+
+impl Display for c64 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format_complex_si(*self))
+    }
+}
+
+impl Debug for c64 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format_complex_si(*self))
     }
 }

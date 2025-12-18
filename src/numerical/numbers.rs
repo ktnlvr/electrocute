@@ -13,6 +13,12 @@ pub struct LinearEquations {
     b: Vec<c64>,
 }
 
+impl Default for LinearEquations {
+    fn default() -> Self {
+        Self::from_coordinates([])
+    }
+}
+
 impl LinearEquations {
     pub fn from_coordinates(coordinates: impl IntoIterator<Item = (u32, u32)>) -> Self {
         let compressed = coordinates.into_iter().fold(
@@ -60,6 +66,24 @@ impl LinearEquations {
         }
     }
 
+    pub fn add_coordinates(&mut self, coordinates: impl IntoIterator<Item = (u32, u32)>) {
+        let existing = self
+            .value_map
+            .iter()
+            .map(|(&k, &v)| (k, self.a[v]))
+            .collect::<HashMap<_, _>>();
+
+        let coordinates = existing.keys().copied().chain(coordinates.into_iter());
+
+        let mut new_self = LinearEquations::from_coordinates(coordinates);
+
+        for (at, v) in existing {
+            new_self.a[new_self.value_map[&at]] = v;
+        }
+
+        *self = new_self;
+    }
+
     fn dimensions(&self) -> (usize, usize) {
         (self.b.len(), self.x.len())
     }
@@ -78,8 +102,6 @@ impl LinearEquations {
     }
 
     pub fn clear_row(&mut self, i: u32) {
-        println!("{:?}", self);
-
         let row = i as usize;
         let start = self.row_pointers[row] as usize;
         let end = self.row_pointers[row + 1] as usize;
