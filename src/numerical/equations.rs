@@ -3,14 +3,14 @@ use std::collections::{BTreeMap, HashMap};
 use crate::numerical::{complex::c64, solve};
 
 // CSR
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinearEquations {
-    value_map: HashMap<(u32, u32), usize>,
-    column_indices: Vec<u32>,
-    row_pointers: Vec<u32>,
-    a: Vec<c64>,
-    x: Vec<c64>,
-    b: Vec<c64>,
+    pub value_map: HashMap<(u32, u32), usize>,
+    pub column_indices: Vec<u32>,
+    pub row_pointers: Vec<u32>,
+    pub a: Vec<c64>,
+    pub x: Vec<c64>,
+    pub b: Vec<c64>,
 }
 
 impl Default for LinearEquations {
@@ -20,6 +20,39 @@ impl Default for LinearEquations {
 }
 
 impl LinearEquations {
+    pub fn from_static_real<const N: usize, const M: usize>(values: [[f64; N]; M]) -> Self {
+        let complex = values.map(|row| row.map(|v| c64::new(v, 0.0)));
+
+        Self::from_static(complex)
+    }
+
+    pub fn from_static<const N: usize, const M: usize>(values: [[c64; N]; M]) -> Self {
+        const EPS: f64 = 1e-6;
+
+        let coords = values.iter().enumerate().flat_map(|(i, row)| {
+            row.iter().enumerate().filter_map(move |(j, &v)| {
+                if v.norm() > EPS {
+                    Some((i as u32, j as u32))
+                } else {
+                    None
+                }
+            })
+        });
+
+        let mut le = LinearEquations::from_coordinates(coords);
+
+        for (i, row) in values.iter().enumerate() {
+            for (j, &v) in row.iter().enumerate() {
+                if v.norm() > EPS {
+                    let idx = le.value_map[&(i as u32, j as u32)];
+                    le.a[idx] = v;
+                }
+            }
+        }
+
+        le
+    }
+
     pub fn from_coordinates(coordinates: impl IntoIterator<Item = (u32, u32)>) -> Self {
         let compressed = coordinates.into_iter().fold(
             BTreeMap::<u32, Vec<u32>>::default(),

@@ -1,7 +1,7 @@
 mod complex;
-mod numbers;
+mod equations;
 mod solve;
 
 pub use complex::*;
-pub use numbers::*;
+pub use equations::*;
 pub use solve::*;
