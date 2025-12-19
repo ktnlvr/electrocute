@@ -95,30 +95,6 @@ pub fn solve(
     max_iters: u32,
     tol: f64,
 ) -> Vec<c64> {
-    // Compute the Jacobi preconditioner
-
-    let mut values = values.into_iter().copied().collect::<Vec<_>>();
-    let diag = diag(&values, row_pointers, column_indices).collect::<Vec<_>>();
-    assert_eq!(diag.len(), row_pointers.len() - 1);
-
-    for row in 0..diag.len() {
-        let start = row_pointers[row] as usize;
-        let end = row_pointers[row + 1] as usize;
-
-        let d_inv = c64::ONE / diag[row];
-
-        for k in start..end {
-            values[k] *= d_inv;
-        }
-    }
-
-    let b = b
-        .into_iter()
-        .copied()
-        .zip(diag)
-        .map(|(a, b)| a / b)
-        .collect::<Vec<_>>();
-
     let a_x0 = sparse_matmul(&values, &column_indices, &row_pointers, &x);
     let mut r = vec_sub(&b, &a_x0);
 
