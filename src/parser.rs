@@ -1,11 +1,9 @@
-use core::panic;
 use std::collections::HashMap;
 
 use crate::{
+    ComponentLibrary,
     circuit::Circuit,
-    component::{AC1Source, Capacitor, DC1Source, Ground, Inductor, Resistor},
-    numerical::c64,
-    si::parse_si_number,
+    expression::{Expression, parse_expr},
 };
 
 #[derive(Debug, Clone)]
@@ -14,83 +12,117 @@ pub enum Command {
         component: String,
         name: Option<String>,
         terminals: Vec<String>,
-        parameters: HashMap<String, c64>,
+        parameters: HashMap<String, Expression>,
     },
 }
 
-pub fn tokenize(input: &str) -> Vec<Vec<String>> {
-    input
-        .split("\n")
-        .filter_map(|s| Some(s.trim()).filter(|s| !s.is_empty() && !s.trim().starts_with("--")))
-        .map(|s| s.split_ascii_whitespace().map(|s| s.to_owned()).collect())
-        .collect()
-}
+fn parse_identifier(input: &str) -> Option<(&str, &str)> {
+    let input = input.trim_start();
 
-fn parse_graph_arg(arg: &str) -> ((String, Option<String>), &str) {
-    // Find '=' sign (if any) and split
-    if let Some(eq_pos) = arg.find('=') {
-        let (lhs, rhs) = arg.split_at(eq_pos);
-        let lhs = lhs.trim();
-        let rhs = &rhs[1..]; // skip '='
-        let rhs = rhs.trim_start(); // keep rest including spaces for parse_expr
+    let mut chars = input.char_indices();
 
-        // Split lhs on '_'
-        let mut word_parts = lhs.splitn(2, '_');
-        let main = word_parts.next().unwrap().to_string();
-        let prefix = word_parts.next().map(|s| s.to_string());
+    let mut end = 0;
 
-        ((main, prefix), rhs)
+    if let Some((i, c)) = chars.next() {
+        if c.is_ascii_alphabetic() || c == '_' || c.is_ascii_punctuation() {
+            end = i + c.len_utf8();
+        } else {
+            return None;
+        }
     } else {
-        // No '=' present, treat as previous
-        let first_space = arg.find(' ').unwrap_or(arg.len());
-        let (first_word, rest) = arg.split_at(first_space);
-
-        let mut word_parts = first_word.splitn(2, '_');
-        let main = word_parts.next().unwrap().to_string();
-        let prefix = word_parts.next().map(|s| s.to_string());
-
-        ((main, prefix), rest)
+        return None;
     }
+
+    for (i, c) in chars {
+        if c.is_ascii_alphanumeric() || c == '_' || c.is_ascii_punctuation() {
+            end = i + c.len_utf8();
+        } else {
+            break;
+        }
+    }
+
+    let (ident, rest) = input.split_at(end);
+
+    Some((ident, rest))
 }
 
-pub fn parse_commands(tokens: Vec<Vec<String>>) -> Vec<Command> {
+fn parse_quoted(input: &str) -> (Option<&str>, &str) {
+    let input = input.trim_start();
+    if input.is_empty() {
+        return (None, "");
+    }
+
+    if !input.starts_with("\"") {
+        return (None, input);
+    }
+
+    let Some((identifier, rest)) = input[1..].split_once("\"") else {
+        return (None, input);
+    };
+
+    (Some(identifier), rest)
+}
+
+fn parse_equality(input: &str) -> Option<(Expression, Option<&str>, &str)> {
+    let rest = input.trim_start();
+    if rest.is_empty() {
+        return None;
+    }
+
+    let (name, rest) = if let Some((var, rest)) = parse_identifier(input) {
+        (Some(var), rest)
+    } else {
+        (None, rest)
+    };
+
+    let rest = rest.trim_start();
+    if !rest.starts_with("=") {
+        return None;
+    }
+
+    let rest = &rest[1..];
+
+    let Some((expr, rest)) = parse_expr(rest).ok() else {
+        return None;
+    };
+
+    Some((expr, name, rest))
+}
+
+pub fn parse_commands<'line>(
+    library: &ComponentLibrary,
+    lines: impl Iterator<Item = &'line str>,
+) -> Vec<Command> {
     let mut commands = Vec::new();
 
-    for token_line in tokens {
-        if token_line.is_empty() {
+    for line in lines {
+        let Some((component, rest)) = parse_identifier(line) else {
             continue;
-        }
+        };
 
-        let first_token = &token_line[0];
+        let rest = rest.trim_start();
+        let (name, mut rest) = parse_quoted(rest);
 
-        let component_type = first_token.clone();
-        let mut terminals = Vec::new();
-        let mut parameters = HashMap::new();
-        let mut component_name = None;
+        let Some(terminal_count) = library.terminal_count_of(component) else {
+            unreachable!()
+        };
 
-        for tok in token_line.iter().skip(1) {
-            if tok.starts_with("\"") {
-                let Some((name, tail)) = tok.split_at(1).1.split_once("\"") else {
-                    panic!("Invalid component name format");
-                };
-                assert!(tail.is_empty());
-                component_name = Some(name.to_string());
-            } else if let Some(eq_pos) = tok.find('=') {
-                let key = &tok[..eq_pos];
-                let value = &tok[eq_pos + 1..];
-                if let Some(val) = parse_si_number(value) {
-                    parameters.insert(key.to_string(), c64::new(val, 0.));
-                }
-            } else {
-                terminals.push(tok.clone());
-            }
+        let mut terminals = vec![];
+        for _ in 0..terminal_count {
+            let Some((identifier, new_rest)) = parse_identifier(rest) else {
+                unreachable!()
+            };
+
+            terminals.push(identifier.to_string());
+
+            rest = new_rest.trim_start();
         }
 
         commands.push(Command::Component {
-            component: component_type,
-            name: component_name,
+            component: component.to_string(),
+            name: name.map(String::from),
             terminals,
-            parameters,
+            parameters: Default::default(),
         });
     }
 
@@ -113,79 +145,6 @@ impl CircuitBuilder {
     }
 
     pub fn build(&self) -> Circuit {
-        let mut circuit = Circuit::new();
-        let mut terminal_map: HashMap<String, u32> = HashMap::new();
-        let mut next_index: u32 = 0;
-
-        for command in &self.commands {
-            if let Command::Component {
-                component,
-                name,
-                terminals,
-                parameters,
-            } = command
-            {
-                let mut term_indices = Vec::new();
-                for t in terminals {
-                    let idx = *terminal_map.entry(t.clone()).or_insert_with(|| {
-                        let i = next_index;
-                        next_index += 1;
-                        i
-                    });
-                    term_indices.push(idx);
-                }
-
-                match component.as_str() {
-                    "dc-source-1-terminal" => {
-                        let mut comp = DC1Source::default();
-                        if let Some(&v) = parameters.get("V") {
-                            comp.voltage_volt = v.re;
-                        }
-                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
-                    }
-                    "resistor" => {
-                        let mut comp = Resistor::default();
-                        if let Some(&r) = parameters.get("R") {
-                            comp.resistance_ohm = r.re;
-                        }
-                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
-                    }
-                    "ground" => {
-                        let comp = Ground::default();
-                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
-                    }
-                    "capacitor" => {
-                        let mut comp = Capacitor::default();
-                        if let Some(&c) = parameters.get("C") {
-                            comp.capacitance_f = c.re;
-                        }
-                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
-                    }
-                    "inductor" => {
-                        let mut comp = Inductor::default();
-                        if let Some(&c) = parameters.get("L") {
-                            comp.inductance_h = c.re;
-                        }
-                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
-                    }
-                    "ac-source-1-terminal" => {
-                        let mut comp = AC1Source::default();
-                        if let Some(&c) = parameters.get("A") {
-                            comp.amplitude_volt = c.re;
-                        }
-                        if let Some(&c) = parameters.get("f") {
-                            comp.frequency_hz = c.re;
-                        }
-                        if let Some(&c) = parameters.get("phi") {
-                            comp.phase_rad = c.re;
-                        }
-                        circuit.put_raw(comp, name.clone(), term_indices.try_into().unwrap());
-                    }
-                    _ => panic!("Unknown component type: {}", component),
-                }
-            }
-        }
-
-        circuit
+        todo!()
     }
 }

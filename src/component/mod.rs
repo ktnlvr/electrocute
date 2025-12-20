@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bytemuck::Pod;
 
 mod passive;
@@ -6,7 +8,11 @@ mod sources;
 pub use passive::*;
 pub use sources::*;
 
-use crate::numerical::{LinearEquations, c64};
+use crate::{
+    circuit::Circuit,
+    expression::Expression,
+    numerical::{LinearEquations, c64},
+};
 
 pub trait Component: Pod {
     type State: Pod + Clone + Copy + Default;
@@ -40,5 +46,59 @@ pub trait Component: Pod {
         _parameter: &str,
     ) -> Option<c64> {
         None
+    }
+}
+
+pub struct ComponentLibrary {
+    constructors: HashMap<
+        String,
+        Box<
+            dyn Fn(
+                &mut Circuit,
+                HashMap<String, Expression>,
+            ) -> Result<HashMap<String, Expression>, Vec<ComponentError>>,
+        >,
+    >,
+    terminal_counts: HashMap<String, usize>,
+}
+
+pub struct MissingRequiredParameter {
+    pub parameter: String,
+}
+
+pub enum ComponentError {
+    UnusedSuppliedParameter { parameter: String },
+    MissingRequiredParameter { parameter: String },
+}
+
+impl ComponentLibrary {
+    pub fn new() -> Self {
+        Self {
+            constructors: Default::default(),
+            terminal_counts: Default::default(),
+        }
+    }
+
+    pub fn register_component<C: Component>(
+        &mut self,
+        name: impl ToString,
+        constructor: impl Fn(
+            HashMap<String, Expression>,
+        )
+            -> Result<(C, HashMap<String, Expression>), Vec<MissingRequiredParameter>>,
+    ) -> &mut Self {
+        let name = name.to_string();
+
+        self.terminal_counts
+            .insert(name.to_owned(), C::TERMINAL_COUNT);
+
+        self.constructors
+            .insert(name, Box::new(|circuit, hashmap| todo!()));
+
+        self
+    }
+
+    pub fn terminal_count_of(&self, component_name: &str) -> Option<usize> {
+        self.terminal_counts.get(component_name).copied()
     }
 }

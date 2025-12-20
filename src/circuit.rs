@@ -24,7 +24,7 @@ impl Circuit {
         }
     }
 
-    pub fn put_raw<C: Component>(
+    pub fn put<C: Component>(
         &mut self,
         component: C,
         name: Option<String>,
