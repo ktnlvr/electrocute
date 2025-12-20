@@ -16,9 +16,11 @@ mod si;
 
 pub fn main() {
     let mut components = ComponentLibrary::new();
-    components.register_component::<DC1Source>("dc-source-1-terminal", |_| todo!());
-    components.register_component::<Resistor>("resistor", |_| todo!());
-    components.register_component::<Ground>("ground", |_| todo!());
+
+    components
+        .register_component::<DC1Source>("dc-source-1-terminal", |_| todo!())
+        .register_component::<Resistor>("resistor", |_| todo!())
+        .register_component::<Ground>("ground", |_| todo!());
 
     let netlist = include_str!("../sample.netlist");
     let cmds = parse_commands(&components, netlist.split("\n"));

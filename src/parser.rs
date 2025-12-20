@@ -118,11 +118,22 @@ pub fn parse_commands<'line>(
             rest = new_rest.trim_start();
         }
 
+        let mut parameters = HashMap::new();
+        while let Some((identifier, new_rest)) = rest.split_once("=") {
+            let Ok((expr, new_rest)) = parse_expr(new_rest.trim_start()) else {
+                break;
+            };
+
+            parameters.insert(identifier.to_string(), expr);
+
+            rest = new_rest.trim_start();
+        }
+
         commands.push(Command::Component {
             component: component.to_string(),
             name: name.map(String::from),
             terminals,
-            parameters: Default::default(),
+            parameters,
         });
     }
 
