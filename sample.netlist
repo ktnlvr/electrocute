@@ -1,4 +1,4 @@
-dc-source-1-terminal    "SRC"   in          V=5
+dc-source-1-terminal    "SRC"   in          V=5+4
 resistor                "R1"    in out      R=5k
 resistor                "R2"    in out      R=10k
 ground                          out

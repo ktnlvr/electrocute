@@ -42,11 +42,30 @@ impl c64 {
     }
 
     pub fn norm(self) -> f64 {
-        (self.re * self.re + self.im * self.im).sqrt()
+        self.norm_sqr().sqrt()
+    }
+
+    pub fn norm_sqr(self) -> f64 {
+        self.re * self.re + self.im * self.im
     }
 
     pub fn arg(self) -> f64 {
         self.im.atan2(self.re)
+    }
+
+    pub fn ln(self) -> Self {
+        Self {
+            re: self.norm().ln(),
+            im: self.arg(),
+        }
+    }
+
+    pub fn exp(self) -> Self {
+        let ea = self.re.exp();
+        Self {
+            re: ea * self.im.cos(),
+            im: ea * self.im.sin(),
+        }
     }
 }
 

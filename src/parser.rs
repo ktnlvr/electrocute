@@ -63,32 +63,6 @@ fn parse_quoted(input: &str) -> (Option<&str>, &str) {
     (Some(identifier), rest)
 }
 
-fn parse_equality(input: &str) -> Option<(Expression, Option<&str>, &str)> {
-    let rest = input.trim_start();
-    if rest.is_empty() {
-        return None;
-    }
-
-    let (name, rest) = if let Some((var, rest)) = parse_identifier(input) {
-        (Some(var), rest)
-    } else {
-        (None, rest)
-    };
-
-    let rest = rest.trim_start();
-    if !rest.starts_with("=") {
-        return None;
-    }
-
-    let rest = &rest[1..];
-
-    let Some((expr, rest)) = parse_expr(rest).ok() else {
-        return None;
-    };
-
-    Some((expr, name, rest))
-}
-
 pub fn parse_commands<'line>(
     library: &ComponentLibrary,
     lines: impl Iterator<Item = &'line str>,

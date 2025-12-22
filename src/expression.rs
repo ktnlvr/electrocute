@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 
+use crate::numerical::c64;
+
 #[derive(Debug, Clone)]
 pub enum ExpressionError {
     FailedToParseFloat,
@@ -53,6 +55,30 @@ pub enum Expression {
         name: String,
         arguments: Vec<Expression>,
     },
+}
+
+impl Expression {
+    pub fn compute_fixed(&self) -> Option<c64> {
+        Some(match self {
+            Expression::Imaginary(im) => c64::new(0., *im),
+            Expression::Real(re) => c64::new(*re, 0.),
+            Expression::Variable { name, subscript } => return None,
+            Expression::Binop { op, lhs, rhs } => {
+                let (lhs, rhs) = (lhs.compute_fixed()?, rhs.compute_fixed()?);
+
+                match op {
+                    BinaryOperator::Add => lhs + rhs,
+                    BinaryOperator::Subtract => lhs - rhs,
+                    BinaryOperator::Multiply => lhs * rhs,
+                    BinaryOperator::Divide => lhs / rhs,
+                    BinaryOperator::Exponentiate => todo!(),
+                    BinaryOperator::Phase => todo!(),
+                }
+            }
+            Expression::Bracketed(expression) => expression.compute_fixed()?,
+            Expression::Function { name, arguments } => todo!(),
+        })
+    }
 }
 
 impl Display for Expression {
