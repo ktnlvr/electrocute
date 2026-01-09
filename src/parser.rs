@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use crate::{
-    ComponentLibrary,
     circuit::Circuit,
-    expression::{Expression, parse_expr},
+    expression::{Expression},
 };
 
 #[derive(Debug, Clone)]
 pub enum Command {
+    Comment(String),
     Component {
         component: String,
         name: Option<String>,
@@ -136,19 +136,48 @@ impl Parser {
         Some(value * 1_000)
     }
 
+    pub fn parse_comment(&mut self) -> Option<String> {
+        self.advance_push();
+
+        if !self.expect_char('-') || !self.expect_char('-') {
+            self.advance_pop();
+            return None;
+        }
+
+        let mut chars = Vec::new();
+
+        while let Some(c) = self.expect(|c| c != '\n') {
+            chars.push(c);
+        }
+
+        self.advance_drop();
+        Some(chars.into_iter().collect::<String>().trim().to_string())
+    }
+
+
     pub fn parse_commands(&mut self) -> Option<Vec<Command>>{
         let mut commands = vec![];
         
-        self.skip_whitespace();
         self.advance_push();
 
-        while let Some(command) = self.parse_component_command() {
+        loop {
             self.advance_drop();
-
-            commands.push(command);
-
-            self.advance_push();
             self.skip_whitespace();
+            self.advance_push();
+
+            if let Some(comment) = self.parse_comment() {
+                commands.push(Command::Comment(comment));
+                self.advance_drop();
+                continue;
+            }
+
+            if let Some(command) = self.parse_component_command() {
+                commands.push(command);
+                self.advance_drop();
+                continue;
+            }
+
+            break;
         }
 
         self.advance_drop();

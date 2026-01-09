@@ -1,4 +1,9 @@
+-- this is the primary source, it is DC
 dc-source-1-terminal    "SRC"   in          V=5k
+
+-- two resistors in parallel
 resistor                "R1"    in out      R=5k
 resistor                "R2"    in out      R=10k
+
+-- final ground
 ground                          out
