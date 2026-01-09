@@ -1,8 +1,10 @@
 #![feature(generic_const_exprs)]
 
+use electrocute::Parser;
+
 use crate::{
     component::{ComponentLibrary, DC1Source, Ground, Resistor},
-    parser::{CircuitBuilder, parse_commands},
+    parser::{CircuitBuilder},
 };
 
 mod buffer;
@@ -23,25 +25,10 @@ pub fn main() {
         .register_component::<Ground>("ground", |_| todo!());
 
     let netlist = include_str!("../sample.netlist");
-    let cmds = parse_commands(&components, netlist.split("\n"));
 
-    for cmd in &cmds {
-        println!("{:?}", cmd);
-    }
+    let mut p = Parser::from(netlist);
 
-    let mut builder = CircuitBuilder::new();
-    builder.add_commands(cmds);
-
-    let mut circuit = builder.build();
-
-    const STEPS: usize = 100000;
-
-    for _ in 0..STEPS {
-        let dt = 0.01;
-
-        circuit.stamp_all(dt);
-        circuit.solve();
-    }
-
-    println!("{:?}", circuit.equations)
+    let c = p.parse_commands();
+    
+    println!("{:#?}", c);
 }

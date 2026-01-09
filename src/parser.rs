@@ -16,102 +16,196 @@ pub enum Command {
     },
 }
 
-fn parse_identifier(input: &str) -> Option<(&str, &str)> {
-    let input = input.trim_start();
+pub struct Parser {
+    pos: usize,
+    advancements: Vec<usize>,
+    chars: Vec<char>,
+}
 
-    let mut chars = input.char_indices();
+impl<S> From<S> for Parser
+where
+    S: ToString,
+{
+    fn from(value: S) -> Self {
+        let chars: Vec<_> = value.to_string().chars().collect();
 
-    let mut end = 0;
+        Parser {
+            pos: 0,
+            advancements: vec![],
+            chars,
+        }
+    }
+}
 
-    if let Some((i, c)) = chars.next() {
-        if c.is_ascii_alphabetic() || c == '_' || c.is_ascii_punctuation() {
-            end = i + c.len_utf8();
-        } else {
+impl Parser {
+    pub fn advance_pop(&mut self) {
+        if let Some(pos) = self.advancements.pop() {
+            self.pos = pos;
+        }
+    }
+
+    pub fn advance_drop(&mut self) {
+        self.advancements.pop();
+    }
+
+    pub fn advance_push(&mut self) {
+        self.advancements.push(self.pos);
+    }
+
+    pub fn skip_whitespace(&mut self) {
+        while !self.is_eof() && self.chars[self.pos].is_whitespace() {
+            self.pos += 1;
+        }
+    }
+
+    pub fn is_eof(&self) -> bool {
+        self.pos >= self.chars.len()
+    }
+
+    pub fn expect(&mut self, pred: impl FnOnce(char) -> bool) -> Option<char> {
+        if self.is_eof() {
             return None;
         }
-    } else {
-        return None;
-    }
 
-    for (i, c) in chars {
-        if c.is_ascii_alphanumeric() || c == '_' || c.is_ascii_punctuation() {
-            end = i + c.len_utf8();
+        let ch = self.chars[self.pos];
+        if pred(ch) {
+            self.pos += 1;
+            Some(ch)
         } else {
-            break;
+            None
         }
     }
 
-    let (ident, rest) = input.split_at(end);
-
-    Some((ident, rest))
-}
-
-fn parse_quoted(input: &str) -> (Option<&str>, &str) {
-    let input = input.trim_start();
-    if input.is_empty() {
-        return (None, "");
+    pub fn expect_char(&mut self, ch: char) -> bool {
+        self.expect(|c| c == ch).is_some()
     }
 
-    if !input.starts_with("\"") {
-        return (None, input);
-    }
+    pub fn parse_identifier(&mut self) -> Option<String> {
+        self.advance_push();
 
-    let Some((identifier, rest)) = input[1..].split_once("\"") else {
-        return (None, input);
-    };
-
-    (Some(identifier), rest)
-}
-
-pub fn parse_commands<'line>(
-    library: &ComponentLibrary,
-    lines: impl Iterator<Item = &'line str>,
-) -> Vec<Command> {
-    let mut commands = Vec::new();
-
-    for line in lines {
-        let Some((component, rest)) = parse_identifier(line) else {
-            continue;
+        let Some(c) = self.expect(|c| c.is_ascii_alphabetic() || c == '-') else {
+            self.advance_pop();
+            return None;
         };
 
-        let rest = rest.trim_start();
-        let (name, mut rest) = parse_quoted(rest);
+        let mut chars = vec![c];
 
-        let Some(terminal_count) = library.terminal_count_of(component) else {
-            unreachable!()
-        };
-
-        let mut terminals = vec![];
-        for _ in 0..terminal_count {
-            let Some((identifier, new_rest)) = parse_identifier(rest) else {
-                unreachable!()
-            };
-
-            terminals.push(identifier.to_string());
-
-            rest = new_rest.trim_start();
+        while let Some(c) = self.expect(|c| c.is_ascii_alphanumeric() || c == '-') {
+            chars.push(c);
         }
 
-        let mut parameters = HashMap::new();
-        while let Some((identifier, new_rest)) = rest.split_once("=") {
-            let Ok((expr, new_rest)) = parse_expr(new_rest.trim_start()) else {
+        Some(chars.into_iter().collect())
+    }
+
+    pub fn parse_string(&mut self) -> Option<String> {
+        self.advance_push();
+
+        if !self.expect_char('"') {
+            self.advance_pop();
+            return None;
+        }
+
+        let mut chars = vec![];
+
+        while let Some(c) = self.expect(|c| c != '"') {
+            chars.push(c);
+        }
+
+        if !self.expect_char('"') {
+            self.advance_pop();
+            return None;
+        }
+
+        self.advance_drop();
+        Some(chars.into_iter().collect())
+    }
+
+    pub fn parse_number_k(&mut self) -> Option<i64> {
+        let mut value = 0;
+        let mut found = false;
+
+        while let Some(c) = self.expect(|c| c.is_ascii_digit()) {
+            found = true;
+            value = value * 10 + (c as i64 - '0' as i64);
+        }
+
+        if !found || !self.expect_char('k') {
+            return None;
+        }
+
+        Some(value * 1_000)
+    }
+
+    pub fn parse_commands(&mut self) -> Option<Vec<Command>>{
+        let mut commands = vec![];
+        
+        self.skip_whitespace();
+        self.advance_push();
+
+        while let Some(command) = self.parse_component_command() {
+            self.advance_drop();
+
+            commands.push(command);
+
+            self.advance_push();
+            self.skip_whitespace();
+        }
+
+        self.advance_drop();
+        Some(commands)
+    }
+
+    pub fn parse_component_command(&mut self) -> Option<Command> {
+        self.advance_push();
+
+        let Some(kind) = self.parse_identifier() else {
+            self.advance_pop();
+            return None;
+        };
+
+        self.skip_whitespace();
+
+        let name = self.parse_string();
+        if name.is_some() {
+            self.skip_whitespace();
+        }
+
+        let mut terminals = Vec::new();
+        let mut params = HashMap::new();
+        let mut parsing_params = false;
+
+        loop {
+            self.skip_whitespace();
+
+            let Some(key) = self.parse_identifier() else {
                 break;
             };
 
-            parameters.insert(identifier.to_string(), expr);
+            if self.expect_char('=') {
+                parsing_params = true;
 
-            rest = new_rest.trim_start();
+                let value = self.parse_number_k().expect("number followed by K");
+
+                params.insert(key, Expression::Real(value as f64));
+            } else {
+                if parsing_params {
+                    self.advance_pop();
+                    break;
+                }
+
+                terminals.push(key);
+            }
         }
 
-        commands.push(Command::Component {
-            component: component.to_string(),
-            name: name.map(String::from),
-            terminals,
-            parameters,
-        });
-    }
+        self.advance_drop();
 
-    commands
+        Some(Command::Component {
+            component: kind,
+            name,
+            terminals,
+            parameters: params.into_iter().collect(),
+        })
+    }
 }
 
 pub struct CircuitBuilder {
