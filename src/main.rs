@@ -1,6 +1,7 @@
 #![feature(generic_const_exprs)]
 
 use electrocute::Parser;
+use wasm_bindgen::prelude::*;
 
 use crate::{
     component::{ComponentLibrary, DC1Source, Ground, Resistor},
@@ -16,6 +17,8 @@ mod parser;
 mod printing;
 mod si;
 
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn main() {
     let mut components = ComponentLibrary::new();
 
